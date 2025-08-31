@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import LiveFeedWaterfall from "@/components/LiveFeedWaterfall";
-import LiveFeedControls from "@/components/LiveFeedControls";
+import SimpleLiveFeed from "@/components/livefeed/SimpleLiveFeed";
 
 // Simple placeholder icons (no extra deps). Replace with real SVGs later.
 const icons = [
@@ -47,7 +46,7 @@ export default function DashboardPage() {
             <span>Live Reddit Feed 📡</span>
           </header>
           <div className="flex-1 overflow-auto pt-14 pb-4">
-            <LiveFeedWaterfall />
+            <SimpleLiveFeed className="h-full" />
           </div>
         </aside>        {/* Main Panel - Live Reddit Feed Dashboard */}
         <main className="relative flex-1 flex flex-col min-h-0 bg-white/70 dark:bg-black/20 backdrop-blur supports-[backdrop-filter]:bg-white/40 dark:supports-[backdrop-filter]:bg-black/30 overflow-hidden">
@@ -60,7 +59,9 @@ export default function DashboardPage() {
           </header>
           <div className="flex-1 overflow-auto pt-16 pb-4">
             <div className="px-6 pb-4">
-              <LiveFeedControls />
+              <div className="text-gray-600 text-sm">
+                The simplified live feed controls are now integrated into the sidebar.
+              </div>
             </div>
           </div>
         </main>
