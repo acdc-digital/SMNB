@@ -1,0 +1,93 @@
+/* WaterfallNarration Component Styles */
+.waterfallNarration {
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.currentNarration {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--card);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  opacity: 0.8;
+}
+
+.segmentsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.segment {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  transition: all 0.5s ease;
+}
+
+.segment.age0 { opacity: 1; transform: translateY(0px); }
+.segment.age1 { opacity: 0.85; transform: translateY(2px); }
+.segment.age2 { opacity: 0.7; transform: translateY(4px); }
+.segment.age3 { opacity: 0.55; transform: translateY(6px); }
+.segment.age4 { opacity: 0.4; transform: translateY(8px); }
+.segment.age5 { opacity: 0.3; transform: translateY(10px); }
+.segment.age6 { opacity: 0.25; transform: translateY(12px); }
+.segment.age7 { opacity: 0.2; transform: translateY(14px); }
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 16rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.progressContainer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.progressBar {
+  width: 100%;
+  background: var(--muted);
+  border-radius: 9999px;
+  height: 0.25rem;
+}
+
+.progressFill {
+  background: #3b82f6;
+  height: 0.25rem;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+  width: 0%;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.125rem;
+  height: 1.25rem;
+  background-color: #3b82f6;
+  margin-left: 0.25rem;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.statusDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  transition: all 0.5s ease;
+}
+
+.statusDot.active {
+  background: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}

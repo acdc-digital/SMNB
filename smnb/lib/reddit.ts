@@ -34,7 +34,9 @@ export type TimeFilter = 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
 
 class RedditAPI {
   private baseUrl = 'https://www.reddit.com';
-  private userAgent = 'SMNB-Reddit-Client/1.0';
+  private userAgent = 'Mozilla/5.0 (compatible; SMNB-Reddit-Client/1.0; +https://github.com/acdc-digital/smnb)';
+  private lastRequestTime = 0;
+  private minRequestInterval = 2000; // 2 seconds between requests to be more respectful
 
   /**
    * Fetch posts from a specific subreddit or r/all
@@ -67,13 +69,46 @@ class RedditAPI {
     const url = `${this.baseUrl}/r/${subreddit}/${sort}.json?${params}`;
 
     try {
+      // Rate limiting: ensure minimum interval between requests
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        const delay = this.minRequestInterval - timeSinceLastRequest;
+        console.log(`⏳ Rate limiting: waiting ${delay}ms before request`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      console.log(`🌐 Fetching Reddit: ${url}`);
+      
       const response = await fetch(url, {
         headers: {
           'User-Agent': this.userAgent,
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
+        method: 'GET',
       });
 
+      this.lastRequestTime = Date.now();
+      console.log(`📊 Reddit response: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
+        const responseText = await response.text();
+        console.error('❌ Reddit API error response:', responseText);
+        
+        if (response.status === 403) {
+          console.warn(`⚠️ Reddit blocked access to r/${subreddit}. This may be due to rate limiting or bot detection.`);
+          throw new Error(`Reddit access blocked for r/${subreddit}. Try again later.`);
+        }
+        
+        if (response.status === 429) {
+          console.warn(`⚠️ Rate limited by Reddit for r/${subreddit}`);
+          throw new Error(`Rate limited by Reddit for r/${subreddit}. Please slow down requests.`);
+        }
+        
         throw new Error(`Reddit API error: ${response.status} ${response.statusText}`);
       }
 

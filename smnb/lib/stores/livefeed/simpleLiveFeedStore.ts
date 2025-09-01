@@ -24,6 +24,12 @@ export interface LiveFeedPost {
   isNew?: boolean;
   sort_type?: 'live' | 'hot' | 'top' | 'rising';
   fetched_at?: number;
+  
+  // Enhanced fields (optional - from processing pipeline)
+  priority_score?: number;
+  quality_score?: number;
+  categories?: string[];
+  sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
 interface SimpleLiveFeedStore {
@@ -106,12 +112,13 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       };
     });
     
-    // Remove new flag after animation
+    // Remove new flag after animation (extended duration for better visibility)
     setTimeout(() => {
       set((state) => ({
-        posts: state.posts.map(p => ({ ...p, isNew: false }))
+        posts: state.posts.map(p => p.isNew ? { ...p, isNew: false } : p)
       }));
-    }, 1000);
+      console.log('🎬 Animation flag removed for new posts');
+    }, 2000); // Increased from 1000ms to 2000ms
   },
   
   clearOldPosts: () => {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { enhancedProcessingPipeline } from '@/lib/services/livefeed/enhancedProcessingPipeline';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
@@ -9,8 +10,8 @@ interface SimpleLiveFeedProps {
   className?: string;
 }
 
-export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
-  const [reducedMotion, setReducedMotion] = useState(false);
+export default function SimpleLiveFeedAnimated({ className }: SimpleLiveFeedProps) {
+  const shouldReduceMotion = useReducedMotion();
   
   const {
     posts,
@@ -28,16 +29,50 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
     clearOldPosts,
   } = useSimpleLiveFeedStore();
 
-  // Check for reduced motion preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mediaQuery.matches);
-    
-    const handleChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  // Animation variants for posts
+  const postVariants = shouldReduceMotion ? {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  } : {
+    hidden: {
+      opacity: 0,
+      y: -100,
+      scale: 0.8,
+      rotateX: -15
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      rotateX: 0,
+      transition: {
+        type: "spring",
+        stiffness: 500,
+        damping: 30,
+        mass: 1,
+        duration: 0.6
+      }
+    },
+    exit: {
+      opacity: 0,
+      x: -100,
+      scale: 0.8,
+      transition: {
+        duration: 0.3,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  // Container animation for staggered effect
+  const containerVariants = {
+    visible: {
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
 
   // Start/stop service when isLive changes
   useEffect(() => {
@@ -64,20 +99,25 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
             domain: post.domain,
             upvote_ratio: post.upvote_ratio,
             over_18: post.over_18,
-            source: 'reddit',
-            addedAt: post.addedAt || Date.now(),
-            batchId: post.batchId || Date.now(),
-            isNew: post.isNew,
+            source: 'reddit' as const,
+            addedAt: Date.now(),
+            batchId: post.batch_id || Date.now(),
+            // Enhanced properties
+            processing_status: post.processing_status,
+            priority_score: post.priority_score,
+            sentiment: post.sentiment,
+            categories: post.categories,
+            quality_score: post.quality_score,
           });
         },
         (error: string | null) => setError(error),
         (loading: boolean) => setLoading(loading),
         {
           subreddits: selectedSubreddits,
+          intervalSeconds: refreshInterval,
           contentMode,
-          maxPostsInPipeline: 200,
-          publishingInterval: 10000, // 10 seconds
-        }
+        },
+        clearOldPosts
       );
     } else {
       console.log('🛑 Stopping enhanced processing pipeline');
@@ -94,29 +134,38 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
       {/* Controls */}
       <div className="bg-card border border-border p-4 rounded-lg shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Simple Live Feed</h2>
+          <h2 className="text-lg font-semibold text-foreground">Enhanced Live Feed</h2>
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isLive ? 'bg-green-500' : 'bg-muted'}`} />
+            <motion.div 
+              className={`w-3 h-3 rounded-full ${isLive ? 'bg-green-500' : 'bg-secondary'}`}
+              animate={isLive ? { 
+                scale: [1, 1.2, 1],
+                opacity: [1, 0.8, 1] 
+              } : { scale: 1, opacity: 1 }}
+              transition={{ repeat: isLive ? Infinity : 0, duration: 2 }}
+            />
             <span className="text-sm text-muted-foreground">{isLive ? 'Live' : 'Stopped'}</span>
           </div>
         </div>
         
         <div className="flex gap-4 items-center">
-          <button
+          <motion.button
             onClick={() => setIsLive(!isLive)}
-            className={`px-4 py-2 rounded transition-colors ${
+            className={`px-4 py-2 rounded transition-colors cursor-pointer ${
               isLive 
                 ? 'bg-red-500 hover:bg-red-600 text-white' 
                 : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
+            whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             {isLive ? 'Stop' : 'Start'}
-          </button>
+          </motion.button>
           
           <div className="flex gap-2">
             <button
               onClick={() => setContentMode('sfw')}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
+              className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
                 contentMode === 'sfw' 
                   ? 'bg-blue-500 text-white' 
                   : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
@@ -126,7 +175,7 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
             </button>
             <button
               onClick={() => setContentMode('nsfw')}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
+              className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
                 contentMode === 'nsfw' 
                   ? 'bg-red-500 text-white' 
                   : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
@@ -141,18 +190,13 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
           <span>Posts: {posts.length} | </span>
           <span>Subreddits: {selectedSubreddits.join(', ')} | </span>
           <span>Interval: {refreshInterval}s</span>
-          {isLoading && <span className="text-blue-500 dark:text-blue-400 ml-2">Loading...</span>}
-          {error && <span className="text-red-500 dark:text-red-400 ml-2">Error: {error}</span>}
+          {isLoading && <span className="text-blue-500 ml-2">Loading...</span>}
+          {error && <span className="text-red-500 ml-2">Error: {error}</span>}
         </div>
       </div>
 
-      {/* Posts */}
-      <motion.div 
-        className="space-y-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      {/* Posts with Animation */}
+      <div className="space-y-3">
         {posts.length === 0 ? (
           <motion.div 
             className="text-center py-8 text-muted-foreground"
@@ -177,6 +221,7 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                   ${post.isNew ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-50 dark:bg-green-950/20' : ''}
                   will-change-transform
                 `}
+                style={{ willChange: 'transform' }}
                 whileHover={shouldReduceMotion ? {} : {
                   scale: 1.02,
                   transition: { duration: 0.2 }
@@ -188,7 +233,7 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                       <h3 className="font-medium text-foreground truncate">
                         {post.title}
                       </h3>
-                      {/* Enhanced indicators */}
+                      {/* Enhanced indicators with animations */}
                       {post.priority_score && post.priority_score > 0.7 && (
                         <motion.span 
                           className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300"
@@ -244,26 +289,21 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                   </div>
                   
                   <div className="ml-4 flex-shrink-0">
-                    <motion.a
+                    <a
                       href={post.permalink}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm cursor-pointer"
-                      whileHover={shouldReduceMotion ? {} : { 
-                        scale: 1.1,
-                        transition: { duration: 0.2 }
-                      }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       View →
-                    </motion.a>
+                    </a>
                   </div>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

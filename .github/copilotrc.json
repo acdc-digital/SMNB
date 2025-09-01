@@ -1,0 +1,182 @@
+{
+  "project": {
+    "name": "SMNB",
+    "description": "Next.js live feed system with intelligent Reddit content curation",
+    "framework": "Next.js 14+ with App Router",
+    "language": "TypeScript",
+    "styling": "Tailwind CSS",
+    "stateManagement": "Zustand",
+    "database": "Convex - reactive database with TypeScript queries",
+    "packageManager": "pnpm"
+  },
+  "architecture": {
+    "pattern": "Multi-agent processing pipeline",
+    "components": [
+      "EnhancedProcessingPipeline",
+      "EnrichmentAgent", 
+      "ScoringAgent",
+      "SchedulerService",
+      "PublisherService"
+    ],
+    "dataFlow": "Raw → Enriched → Scored → Scheduled → Published",
+    "processingStates": ["raw", "enriched", "scored", "scheduled", "published"]
+  },
+  "preferences": {
+    "convex": {
+      "useReactiveQueries": true,
+      "typeValidation": true,
+      "schemaFirst": true,
+      "realTimeUpdates": true,
+      "scheduledFunctions": true,
+      "examples": {
+        "query": "useQuery(api.posts.getPosts, { subreddit: 'news' })",
+        "mutation": "useMutation(api.posts.createPost)",
+        "action": "ctx.runAction(api.reddit.fetchPosts)",
+        "scheduler": "ctx.scheduler.runAfter(5000, api.posts.publishPost)"
+      }
+    },
+    "typescript": {
+      "strictMode": true,
+      "preferInterfaces": true,
+      "useEnums": true,
+      "explicitTypes": true
+    },
+    "react": {
+      "functionalComponents": true,
+      "customHooks": true,
+      "typedProps": true
+    },
+    "styling": {
+      "framework": "Tailwind CSS",
+      "approach": "Mobile-first",
+      "darkMode": true,
+      "accessibility": true
+    },
+    "logging": {
+      "useEmojis": true,
+      "structuredLogging": true,
+      "examples": {
+        "success": "✅ Operation completed",
+        "error": "❌ Operation failed",
+        "info": "📥 New data received",
+        "processing": "🧠 Processing data"
+      }
+    }
+  },
+  "patterns": {
+    "errorHandling": {
+      "useAsyncAwait": true,
+      "comprehensiveLogging": true,
+      "gracefulDegradation": true,
+      "userFriendlyMessages": true
+    },
+    "stateManagement": {
+      "immutableUpdates": true,
+      "actionSeparation": true,
+      "typedStores": true
+    },
+    "services": {
+      "singleResponsibility": true,
+      "singletonPattern": true,
+      "configurationDriven": true
+    }
+  },
+  "workflowPatterns": {
+    "preferred_approach": "explore_plan_code_commit",
+    "use_test_driven_development": true,
+    "visual_development_with_screenshots": true,
+    "iterative_improvement_expected": true,
+    "course_correction_encouraged": true
+  },
+  "agenticCoding": {
+    "instruction_specificity": "detailed_with_constraints",
+    "context_management": "reset_between_major_tasks",
+    "use_visual_references": true,
+    "mention_relevant_files": true,
+    "provide_early_context": true,
+    "use_checklists_for_complex_tasks": true,
+    "expect_multiple_iterations": true,
+    "independent_verification": true,
+    "thinking_levels": ["think", "think hard", "think harder", "ultrathink"]
+  },
+  "liveFeedSpecifics": {
+    "visualIndicators": {
+      "priority": "🔥 High priority",
+      "sentiment": "😊😐😞 Emotional context",
+      "quality": "⭐ Quality scores",
+      "categories": "🏷️ Topic labels"
+    },
+    "timing": {
+      "immediatePublishing": "First 3 posts: now, +2s, +4s",
+      "regularInterval": "5-8 minutes between posts",
+      "peakHours": "14-18 UTC"
+    },
+    "qualityMetrics": {
+      "engagementWeight": 0.4,
+      "recencyWeight": 0.35,
+      "qualityWeight": 0.25
+    }
+  },
+  "fileNaming": {
+    "components": "PascalCase",
+    "services": "camelCase",
+    "types": "camelCase",
+    "stores": "camelCase + Store suffix"
+  },
+  "doNotDo": [
+    "Mutate props directly",
+    "Use 'any' type unnecessarily",
+    "Skip error handling",
+    "Hardcode configurable values",
+    "Create untyped components",
+    "Ignore accessibility"
+  ],
+  "keyPrinciples": [
+    "Intelligent content curation",
+    "Real-time user experience",
+    "Type safety throughout",
+    "Performance optimization",
+    "Graceful error handling",
+    "User-focused design",
+    "Convex-first data patterns",
+    "Reactive UI updates",
+    "Schema-driven development"
+  ],
+  "convexIntegration": {
+    "documentationUrl": "https://www.convex.dev/llms.txt",
+    "keyFeatures": [
+      "Reactive database with TypeScript queries",
+      "Real-time sync engine",
+      "Schema validation",
+      "Scheduled functions",
+      "External API actions",
+      "File storage",
+      "Authentication integration"
+    ],
+    "liveFeedUsage": {
+      "dataIngestion": "Use Convex actions for Reddit API calls",
+      "pipeline": "Use mutations for each processing stage",
+      "realTime": "Leverage Convex reactivity for live updates",
+      "scheduling": "Use Convex scheduler for timing",
+      "storage": "Store posts with processing_status tracking"
+    }
+  },
+  "mcpIntegration": {
+    "shadcnServer": {
+      "enabled": true,
+      "configPath": ".vscode/mcp.json",
+      "capabilities": [
+        "Browse components from registries",
+        "Search components by functionality", 
+        "Install components via natural language",
+        "Support multiple registries"
+      ],
+      "examplePrompts": [
+        "Show me all available components in the shadcn registry",
+        "Add the button, dialog and card components to my project",
+        "Create a contact form using components from the shadcn registry",
+        "Install the data table component"
+      ]
+    }
+  }
+}
