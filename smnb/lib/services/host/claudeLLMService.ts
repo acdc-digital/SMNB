@@ -60,6 +60,84 @@ export class ClaudeLLMService {
     }
   }
 
+  async generateStream(
+    prompt: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      systemPrompt?: string;
+    },
+    onChunk?: (chunk: string) => void,
+    onComplete?: (fullText: string) => void,
+    onError?: (error: Error) => void
+  ): Promise<string> {
+    try {
+      console.log('🤖 Starting streaming narration with Claude...');
+      
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'stream',
+          prompt,
+          options
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader');
+      }
+
+      let fullText = '';
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'chunk' && data.text) {
+                fullText += data.text;
+                onChunk?.(data.text);
+              } else if (data.type === 'complete') {
+                console.log('✅ Streaming narration completed');
+                onComplete?.(fullText);
+                return fullText;
+              } else if (data.type === 'error') {
+                throw new Error(data.error);
+              }
+            } catch {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+      }
+
+      return fullText;
+      
+    } catch (error) {
+      console.error('❌ Claude streaming failed:', error);
+      const err = error instanceof Error ? error : new Error('Unknown error');
+      onError?.(err);
+      // Fall back to regular generation
+      return await this.generate(prompt, options);
+    }
+  }
+
   async analyzeContent(content: string): Promise<LLMAnalysis> {
     try {
       console.log('🧠 Analyzing content with Claude...');

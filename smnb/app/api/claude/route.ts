@@ -48,6 +48,60 @@ export async function POST(request: NextRequest) {
         throw new Error('Unexpected response format from Claude');
       }
 
+    } else if (action === 'stream') {
+      // Create a streaming response
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const response = await anthropic.messages.create({
+              model: 'claude-3-5-haiku-20241022',
+              max_tokens: options?.maxTokens || 200,
+              temperature: options?.temperature || 0.7,
+              system: options?.systemPrompt || 'You are a professional news broadcaster generating engaging narrations.',
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              stream: true
+            });
+
+            for await (const chunk of response) {
+              if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+                const data = JSON.stringify({ 
+                  type: 'chunk', 
+                  text: chunk.delta.text 
+                });
+                controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
+              } else if (chunk.type === 'message_stop') {
+                const data = JSON.stringify({ 
+                  type: 'complete' 
+                });
+                controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
+                break;
+              }
+            }
+          } catch (error) {
+            const errorData = JSON.stringify({
+              type: 'error',
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            controller.enqueue(new TextEncoder().encode(`data: ${errorData}\n\n`));
+          } finally {
+            controller.close();
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+
     } else if (action === 'analyze') {
       const analysisPrompt = `
 Analyze the following social media content and provide a JSON response:

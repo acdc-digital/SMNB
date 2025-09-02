@@ -26,6 +26,8 @@ export class HostAgentService extends EventEmitter {
   private statsInterval: NodeJS.Timeout | null = null;
   private llmService: MockLLMService | ClaudeLLMService;
   private startTime: number = 0;
+  private lastNarrationCompletedAt: number = 0;
+  private readonly NARRATION_COOLDOWN_MS = 2000; // 2 seconds between narrations
 
   constructor(config: Partial<HostAgentConfig> = {}, llmService?: MockLLMService | ClaudeLLMService) {
     super();
@@ -125,23 +127,21 @@ export class HostAgentService extends EventEmitter {
         return;
       }
 
-      console.log(`🔄 Processing news item: ${item.title || item.content.substring(0, 50)}...`);
+      console.log(`🔄 Processing news item: ${item.title || item.content.substring(0, 50)}... [Current narration: ${this.state.currentNarration?.id || 'none'}]`);
 
       // Add to context window
       this.updateContext(item);
 
-      // Generate narration
-      const narration = await this.generateNarration(item);
+      // Create placeholder narration and start streaming
+      await this.generateStreamingNarration(item);
       
-      // Add to queue with priority sorting
-      this.addToQueue(narration);
       this.state.processedItems.add(item.id);
       this.state.stats.itemsProcessed++;
       
-      this.emit('narration:generated', narration);
+      this.emit('narration:queued', item.id);
       this.emit('queue:updated', this.state.narrationQueue.length);
       
-      console.log(`✅ Generated narration for: ${item.id}`);
+      console.log(`✅ Started streaming narration for: ${item.id}`);
       
     } catch (error) {
       console.error(`❌ Failed to process news item ${item.id}:`, error);
@@ -225,49 +225,117 @@ export class HostAgentService extends EventEmitter {
     }
   }
 
-  private async generateNarration(item: NewsItem): Promise<HostNarration> {
+  private async generateStreamingNarration(item: NewsItem): Promise<void> {
     try {
-      const prompt = this.buildPrompt(item);
-      const narrative = await this.llmService.generate(prompt, {
-        temperature: HOST_PERSONALITIES[this.config.personality].temperature,
-        maxTokens: VERBOSITY_LEVELS[this.config.verbosity].maxTokens,
-        systemPrompt: HOST_PERSONALITIES[this.config.personality].systemPrompt
-      });
+      // Create initial narration placeholder
+      const narrationId = `narration-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Analyze content for metadata
+      // Get analysis first (non-streaming)
       const analysis = await this.llmService.analyzeContent(item.content);
       
-      // Split narrative into segments for waterfall effect
-      const segments = this.splitIntoSegments(narrative);
-      
-      const narration: HostNarration = {
-        id: `narration-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      const placeholderNarration: HostNarration = {
+        id: narrationId,
         newsItemId: item.id,
-        narrative,
+        narrative: '', // Will be filled by streaming
         tone: this.determineTone(item, analysis),
         priority: this.determinePriority(item, analysis),
         timestamp: new Date(),
-        duration: this.estimateReadingTime(narrative),
-        segments,
-        metadata: analysis
+        duration: 0, // Will be calculated as we stream
+        segments: [], // Will be populated by streaming
+        metadata: {
+          ...analysis,
+          originalItem: item // Store the original item for queue processing
+        }
       };
+
+    // Only add to queue if we're not already processing something
+    if (!this.state.currentNarration) {
+      // Check cooldown period
+      const timeSinceLastNarration = Date.now() - this.lastNarrationCompletedAt;
+      if (this.lastNarrationCompletedAt > 0 && timeSinceLastNarration < this.NARRATION_COOLDOWN_MS) {
+        console.log(`⏳ In cooldown period (${this.NARRATION_COOLDOWN_MS - timeSinceLastNarration}ms remaining), adding to queue: ${narrationId}`);
+        this.addToQueue(placeholderNarration);
+        return;
+      }
       
-      return narration;
+      this.state.currentNarration = placeholderNarration;
+      console.log(`🎬 Starting narration immediately: ${narrationId} [Queue length: ${this.state.narrationQueue.length}]`);
+      this.emit('narration:started', placeholderNarration);
+      this.emit('narration:streaming', { narrationId, currentText: '' });
+      
+      // Start live streaming from Claude API
+      await this.startLiveStreaming(placeholderNarration, item);
+    } else {
+      // Add to queue if we're busy
+      this.addToQueue(placeholderNarration);
+      console.log(`📝 Added narration to queue: ${placeholderNarration.id} [Queue length: ${this.state.narrationQueue.length}] [Current: ${this.state.currentNarration.id}]`);
+    }    } catch (error) {
+      console.error('❌ Error in generateStreamingNarration:', error);
+      this.emit('narration:error', item.id, error as Error);
+    }
+  }
+
+  private async startLiveStreaming(narration: HostNarration, item: NewsItem): Promise<void> {
+    const prompt = this.buildPrompt(item);
+    let currentText = '';
+    
+    try {
+      await this.llmService.generateStream(
+        prompt,
+        {
+          temperature: HOST_PERSONALITIES[this.config.personality].temperature,
+          maxTokens: VERBOSITY_LEVELS[this.config.verbosity].maxTokens,
+          systemPrompt: HOST_PERSONALITIES[this.config.personality].systemPrompt
+        },
+        // onChunk callback
+        (chunk: string) => {
+          currentText += chunk;
+          
+          // Emit streaming chunk
+          this.emit('narration:streaming', {
+            narrationId: narration.id,
+            currentText
+          });
+        },
+        // onComplete callback  
+        (fullText: string) => {
+          // Update the current narration with final content
+          if (this.state.currentNarration && this.state.currentNarration.id === narration.id) {
+            this.state.currentNarration.narrative = fullText;
+            this.state.currentNarration.duration = this.estimateReadingTime(fullText);
+            this.state.currentNarration.segments = this.splitIntoSegments(fullText);
+          }
+
+          console.log(`✅ Live streaming completed for: ${narration.id}`);
+          this.emit('narration:completed', narration.id, fullText);
+          
+          // Set cooldown timestamp and clear current narration
+          this.lastNarrationCompletedAt = Date.now();
+          this.state.currentNarration = null;
+          
+          setTimeout(() => {
+            this.processQueue();
+          }, 1500); // Brief pause between narrations
+        },
+        // onError callback
+        (error: Error) => {
+          console.error(`❌ Live streaming failed for ${narration.id}:`, error);
+          this.emit('narration:error', narration.id, error);
+          
+          // Set cooldown timestamp and clear current narration
+          this.lastNarrationCompletedAt = Date.now();
+          this.state.currentNarration = null;
+          
+          setTimeout(() => {
+            this.processQueue();
+          }, 1000);
+        }
+      );
       
     } catch (error) {
-      console.error(`❌ Failed to generate narration for ${item.id}:`, error);
-      
-      // Return fallback narration
-      return {
-        id: `fallback-${Date.now()}`,
-        newsItemId: item.id,
-        narrative: `📰 Latest update: ${item.content.substring(0, 100)}...`,
-        tone: 'analysis',
-        priority: 'low',
-        timestamp: new Date(),
-        duration: 10,
-        segments: [`📰 Latest update: ${item.content.substring(0, 100)}...`]
-      };
+      console.error(`❌ Error starting live streaming for ${narration.id}:`, error);
+      this.emit('narration:error', narration.id, error as Error);
+      this.state.currentNarration = null;
     }
   }
 
@@ -415,30 +483,76 @@ ${contextSummary !== "No previous context" ? "Maintain continuity with previous 
   }
 
   private async processQueue(): Promise<void> {
+    console.log(`🎯 processQueue called: ${this.state.narrationQueue.length} items in queue, current narration: ${this.state.currentNarration?.id || 'none'}`);
+    
+    // Don't process if queue is empty or we're already processing a narration
     if (this.state.narrationQueue.length === 0 || this.state.currentNarration) {
+      console.log(`⏸️ processQueue skipping - queue empty: ${this.state.narrationQueue.length === 0}, already processing: ${!!this.state.currentNarration}`);
       return;
     }
     
     try {
-      const narration = this.state.narrationQueue.shift();
-      if (!narration) return;
+      const queuedNarration = this.state.narrationQueue.shift();
+      if (!queuedNarration) return;
       
-      this.state.currentNarration = narration;
+      this.state.currentNarration = queuedNarration;
       this.state.stats.totalNarrations++;
       
-      this.emit('narration:started', narration);
-      this.emit('queue:updated', this.state.narrationQueue.length);
+      console.log(`🎬 Starting queued narration: ${queuedNarration.id} for item: ${queuedNarration.metadata?.originalItem?.title?.substring(0, 50) || 'unknown'}...`);
       
-      // Simulate narration duration
-      setTimeout(() => {
-        this.emit('narration:completed', narration);
+      this.emit('narration:started', queuedNarration);
+      this.emit('queue:updated', this.state.narrationQueue.length);
+      this.emit('narration:streaming', { narrationId: queuedNarration.id, currentText: '' });
+      
+      // For queued items, we need to generate the narration live via Claude API
+      // Get the original item from metadata
+      const originalItem = queuedNarration.metadata?.originalItem;
+      if (originalItem) {
+        await this.startLiveStreaming(queuedNarration, originalItem);
+      } else {
+        console.error('❌ No original item found in queued narration metadata');
         this.state.currentNarration = null;
-      }, narration.duration * 1000);
+        setTimeout(() => this.processQueue(), 1000);
+      }
       
     } catch (error) {
       console.error('❌ Error processing queue:', error);
       this.emit('error', error as Error);
+      this.state.currentNarration = null;
+      setTimeout(() => this.processQueue(), 1000);
     }
+  }
+
+  private async streamExistingNarration(narration: HostNarration): Promise<void> {
+    const text = narration.narrative;
+    let currentText = '';
+    
+    this.emit('narration:streaming', {
+      narrationId: narration.id,
+      currentText: ''
+    });
+    
+    // Stream the existing text character by character at a readable speed
+    for (let i = 0; i < text.length; i++) {
+      currentText += text[i];
+      
+      this.emit('narration:streaming', {
+        narrationId: narration.id,
+        currentText
+      });
+      
+      // Wait between characters for readable speed (adjustable)
+      await new Promise(resolve => setTimeout(resolve, 30)); // 30ms between characters
+    }
+    
+    // Complete the narration
+    this.emit('narration:completed', narration.id, text);
+    this.state.currentNarration = null;
+    
+    // Process next item in queue after a brief pause
+    setTimeout(() => {
+      this.processQueue();
+    }, 1000); // 1 second pause between narrations
   }
 
   private updateStats(): void {

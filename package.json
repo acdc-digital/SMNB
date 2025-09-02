@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "pnpm --filter smnb dev",
     "dev:next": "pnpm --filter smnb dev",
-    "dev:convex": "convex dev",
+    "dev:convex": "cd smnb && npx convex dev",
+    "convex": "cd smnb && npx convex dev",
     "dev:all": "pnpm -r --parallel dev:next dev:convex"
   }
 }

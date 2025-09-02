@@ -1,6 +1,15 @@
 'use client';
 
 import { create } from 'zustand';
+import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
+
+// Helper function to get host agent store without circular dependency
+const getHostAgentStore = () => {
+  // Lazy import to avoid circular dependency
+  return import('@/lib/stores/host/hostAgentStore').then(
+    module => module.useHostAgentStore.getState()
+  );
+};
 
 export interface LiveFeedPost {
   id: string;
@@ -24,6 +33,7 @@ export interface LiveFeedPost {
   isNew?: boolean;
   sort_type?: 'live' | 'hot' | 'top' | 'rising';
   fetched_at?: number;
+  sessionId?: string; // Track which session this post came from
   
   // Enhanced fields (optional - from processing pipeline)
   priority_score?: number;
@@ -46,12 +56,14 @@ interface SimpleLiveFeedStore {
   error: string | null;
   lastFetch: number | null;
   totalPostsFetched: number;
+  currentSessionId: string; // Track current session for posts
   
   // Actions
   setPosts: (posts: LiveFeedPost[]) => void;
   addPost: (post: LiveFeedPost) => void;
   clearPosts: () => void;
   clearOldPosts: () => void;
+  manualClearPosts: () => void; // New action for manual clearing
   
   // Controls
   setIsLive: (isLive: boolean) => void;
@@ -79,13 +91,36 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   error: null,
   lastFetch: null,
   totalPostsFetched: 0,
+  currentSessionId: `session-${Date.now()}`,
   
   // Actions
   setPosts: (posts) => {
-    set((state) => ({
-      posts: posts.slice(0, state.maxPosts), // Ensure we don't exceed max
-      lastFetch: Date.now(),
-    }));
+    set((state) => {
+      console.log(`📋 Setting ${posts.length} posts`);
+      
+      // Notify host agent of all new posts (async)
+      getHostAgentStore().then(hostStore => {
+        if (hostStore && hostStore.processLiveFeedPost) {
+          posts.forEach(post => {
+            // Convert LiveFeedPost to EnhancedRedditPost format
+            const enhancedPost: EnhancedRedditPost = {
+              ...post,
+              fetch_timestamp: Date.now(),
+              engagement_score: post.score + post.num_comments,
+              processing_status: 'raw' as const
+            };
+            hostStore.processLiveFeedPost(enhancedPost);
+          });
+        }
+      }).catch(error => {
+        console.error('❌ Failed to notify host agent of bulk posts:', error);
+      });
+      
+      return {
+        posts: posts.slice(0, state.maxPosts), // Ensure we don't exceed max
+        lastFetch: Date.now(),
+      };
+    });
   },
   
   addPost: (post) => {
@@ -99,12 +134,36 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       
       // Add to beginning (newest first) and limit
       const newPosts = [
-        { ...post, addedAt: Date.now(), isNew: true },
+        { 
+          ...post, 
+          addedAt: Date.now(), 
+          isNew: true,
+          sessionId: state.currentSessionId // Tag with current session
+        },
         ...state.posts
       ].slice(0, state.maxPosts);
       
       console.log(`✅ Added post: ${post.title.substring(0, 30)}...`);
       console.log(`📊 Total posts: ${newPosts.length}`);
+      
+      // Notify host agent of new post (async)
+      getHostAgentStore().then(hostStore => {
+        if (hostStore && hostStore.processLiveFeedPost) {
+          // Convert LiveFeedPost to EnhancedRedditPost format
+          const enhancedPost: EnhancedRedditPost = {
+            ...post,
+            fetch_timestamp: Date.now(),
+            engagement_score: post.score + post.num_comments,
+            processing_status: 'raw' as const
+          };
+          console.log(`🎙️ FEED: Notifying host agent of new post: ${post.title.substring(0, 30)}...`);
+          hostStore.processLiveFeedPost(enhancedPost);
+        } else {
+          console.log('📴 FEED: Host agent not available or not active');
+        }
+      }).catch(error => {
+        console.error('❌ FEED: Failed to notify host agent:', error);
+      });
       
       return {
         posts: newPosts,
@@ -138,26 +197,42 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   clearPosts: () => {
     set({ posts: [], totalPostsFetched: 0, lastFetch: null });
   },
+
+  manualClearPosts: () => {
+    set(() => ({ 
+      posts: [], 
+      totalPostsFetched: 0, 
+      lastFetch: null,
+      currentSessionId: `session-${Date.now()}` // Generate new session ID
+    }));
+    console.log('🗑️ Posts manually cleared by user');
+  },
   
   // Controls
   setIsLive: (isLive) => {
-    set({ isLive });
+    set((state) => ({
+      isLive,
+      // Generate new session ID when starting live feed
+      currentSessionId: isLive ? `session-${Date.now()}` : state.currentSessionId
+    }));
+    // Don't clear posts when toggling live feed - keep existing posts
     if (!isLive) {
-      // Clear posts when stopping live feed
-      get().clearPosts();
+      console.log('⏸️ Live feed paused - keeping existing posts');
+    } else {
+      console.log('▶️ Live feed resumed - will add new posts to existing ones');
     }
   },
   
   setContentMode: (contentMode) => {
     set({ contentMode });
-    // Clear posts when changing content mode
-    get().clearPosts();
+    // Don't clear posts when changing content mode - keep existing posts
+    console.log(`🔄 Content mode changed to ${contentMode} - keeping existing posts`);
   },
   
   setSelectedSubreddits: (selectedSubreddits) => {
     set({ selectedSubreddits });
-    // Clear posts when changing subreddits
-    get().clearPosts();
+    // Don't clear posts when changing subreddits - keep existing posts
+    console.log(`🔄 Subreddits changed - keeping existing posts`);
   },
   
   setRefreshInterval: (refreshInterval) => {

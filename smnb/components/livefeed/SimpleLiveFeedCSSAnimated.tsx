@@ -19,9 +19,11 @@ export default function SimpleLiveFeedCSSAnimated({ className }: SimpleLiveFeedP
     contentMode,
     selectedSubreddits,
     refreshInterval,
+    currentSessionId,
     addPost,
     setLoading,
     setError,
+    manualClearPosts,
   } = useSimpleLiveFeedStore();
 
   // Track which posts should show animation
@@ -122,6 +124,19 @@ export default function SimpleLiveFeedCSSAnimated({ className }: SimpleLiveFeedP
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* Header with Controls */}
+      <div className="flex items-center justify-between px-2 py-2 border-b border-border/50">
+        <div className="text-sm font-medium text-muted-foreground">
+          Live Feed {posts.length > 0 && `(${posts.length} posts)`}
+        </div>
+        <button
+          onClick={manualClearPosts}
+          className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+        >
+          🗑️ Clear All
+        </button>
+      </div>
+      
       {/* Posts with CSS Animations */}
       <div className="space-y-4 px-2">
         {posts.length === 0 ? (
@@ -136,6 +151,7 @@ export default function SimpleLiveFeedCSSAnimated({ className }: SimpleLiveFeedP
           <div className="space-y-2">
             {posts.map((post) => {
               const shouldAnimate = (post.isNew || animatingPosts.has(post.id)) && !reducedMotion;
+              const isFromPreviousSession = post.sessionId !== currentSessionId;
               
               // Debug log for animation
               if (shouldAnimate) {
@@ -148,6 +164,7 @@ export default function SimpleLiveFeedCSSAnimated({ className }: SimpleLiveFeedP
                   className={`
                     bg-card border border-border rounded shadow-sm
                     ${shouldAnimate ? 'animate-simple-slide' : ''}
+                    ${isFromPreviousSession ? 'opacity-75 border-l-4 border-l-muted-foreground/30' : ''}
                     will-change-transform
                   `}
                 >
@@ -183,6 +200,16 @@ export default function SimpleLiveFeedCSSAnimated({ className }: SimpleLiveFeedP
                           }`}
                         >
                           😔 Critical
+                        </span>
+                      )}
+                      {/* Session indicator for previous session posts */}
+                      {isFromPreviousSession && (
+                        <span 
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 ${
+                            reducedMotion ? '' : 'animate-scale-in-delayed-3'
+                          }`}
+                        >
+                          📚 Previous Session
                         </span>
                       )}
                     </div>

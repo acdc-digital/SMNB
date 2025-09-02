@@ -49,6 +49,49 @@ export class MockLLMService {
     });
   }
 
+  async generateStream(
+    prompt: string, 
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      systemPrompt?: string;
+    },
+    onChunk?: (chunk: string) => void,
+    onComplete?: (fullText: string) => void,
+    onError?: (error: Error) => void
+  ): Promise<string> {
+    try {
+      if (!this.isEnabled) {
+        throw new Error('Mock LLM service is disabled');
+      }
+
+      // Generate the full response first
+      const fullText = await this.generate(prompt, options);
+      
+      // Simulate streaming by sending chunks character by character
+      let currentText = '';
+      const chunkSize = Math.max(1, Math.floor(Math.random() * 5) + 1); // 1-5 chars per chunk
+      
+      for (let i = 0; i < fullText.length; i += chunkSize) {
+        const chunk = fullText.slice(i, i + chunkSize);
+        currentText += chunk;
+        
+        // Simulate streaming delay
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+        
+        onChunk?.(chunk);
+      }
+      
+      onComplete?.(fullText);
+      return fullText;
+      
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Mock streaming failed');
+      onError?.(err);
+      throw err;
+    }
+  }
+
   async analyzeContent(content: string): Promise<LLMAnalysis> {
     await this.simulateDelay();
 

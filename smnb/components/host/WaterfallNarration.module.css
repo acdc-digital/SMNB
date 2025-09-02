@@ -1,8 +1,4 @@
 /* WaterfallNarration Component Styles */
-.waterfallNarration {
-  padding: 1.5rem;
-  height: 100%;
-}
 
 .currentNarration {
   margin-bottom: 1.5rem;
@@ -24,6 +20,7 @@
   border-radius: 0.5rem;
   border: 1px solid;
   transition: all 0.5s ease;
+  transform: translateY(var(--translate-y, 0px));
 }
 
 .segment.age0 { opacity: 1; transform: translateY(0px); }
@@ -56,6 +53,7 @@
   background: var(--muted);
   border-radius: 9999px;
   height: 0.25rem;
+  position: relative;
 }
 
 .progressFill {
@@ -63,7 +61,7 @@
   height: 0.25rem;
   border-radius: 9999px;
   transition: all 0.2s ease;
-  width: 0%;
+  width: var(--progress-width, 0%);
 }
 
 .cursor {
@@ -90,4 +88,12 @@
 .statusDot.active {
   background: #ef4444;
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+.historyItem {
+  transform: translateY(var(--translate-y, 0px));
+}
+
+.progressWidth {
+  width: var(--progress-width, 0%);
 }

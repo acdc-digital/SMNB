@@ -37,6 +37,7 @@ export interface HostNarration {
     sentiment?: 'positive' | 'negative' | 'neutral';
     topics?: string[];
     summary?: string;
+    originalItem?: NewsItem; // Store original item for queue processing
   };
 }
 
