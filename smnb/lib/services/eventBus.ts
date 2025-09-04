@@ -12,7 +12,7 @@ export type EventBusEvents = {
 };
 
 class EventBus {
-  private listeners = new Map<keyof EventBusEvents, Array<(data: unknown) => void>>();
+  private listeners = new Map<keyof EventBusEvents, Array<(data: any) => void>>();
 
   emit<T extends keyof EventBusEvents>(event: T, data: EventBusEvents[T]) {
     const eventListeners = this.listeners.get(event) || [];
@@ -29,12 +29,12 @@ class EventBus {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
-    this.listeners.get(event)!.push(listener);
+    this.listeners.get(event)!.push(listener as (data: any) => void);
   }
 
   off<T extends keyof EventBusEvents>(event: T, listener: (data: EventBusEvents[T]) => void) {
     const eventListeners = this.listeners.get(event) || [];
-    const index = eventListeners.indexOf(listener);
+    const index = eventListeners.indexOf(listener as (data: any) => void);
     if (index > -1) {
       eventListeners.splice(index, 1);
     }

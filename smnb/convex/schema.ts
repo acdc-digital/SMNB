@@ -2,42 +2,6 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  reddit_posts: defineTable({
-    id: v.string(),
-    title: v.string(),
-    author: v.string(),
-    subreddit: v.string(),
-    url: v.string(),
-    permalink: v.string(),
-    score: v.number(),
-    num_comments: v.number(),
-    created_utc: v.number(),
-    thumbnail: v.string(),
-    selftext: v.string(),
-    is_video: v.boolean(),
-    domain: v.string(),
-    upvote_ratio: v.number(),
-    over_18: v.boolean(),
-    sort_type: v.string(), // 'hot', 'rising', 'top', etc.
-    time_filter: v.optional(v.string()), // for top posts
-    fetched_at: v.number(),
-  })
-    .index("by_sort_type", ["sort_type"])
-    .index("by_subreddit", ["subreddit"])
-    .index("by_sort_and_subreddit", ["sort_type", "subreddit"])
-    .index("by_created_utc", ["created_utc"])
-    .index("by_score", ["score"])
-    .index("by_fetched_at", ["fetched_at"])
-    // Search indexes for full-text search
-    .searchIndex("search_title", {
-      searchField: "title",
-      filterFields: ["subreddit", "sort_type", "over_18"]
-    })
-    .searchIndex("search_content", {
-      searchField: "selftext", 
-      filterFields: ["subreddit", "sort_type", "over_18"]
-    }),
-
   live_feed_posts: defineTable({
     id: v.string(),
     title: v.string(),
@@ -98,22 +62,76 @@ export default defineSchema({
       filterFields: ["status", "generated_by_agent"]
     }),
 
+  host_sessions: defineTable({
+    session_id: v.string(), // Unique identifier for the session
+    title: v.string(), // Session name/title
+    status: v.union(v.literal("active"), v.literal("ended"), v.literal("archived")),
+    created_at: v.number(),
+    ended_at: v.optional(v.number()),
+    
+    // Host configuration for this session
+    personality: v.string(), // Host personality type
+    verbosity: v.string(), // Verbosity level
+    context_window: v.number(), // Number of items to consider
+    update_frequency: v.number(), // Processing frequency in ms
+    
+    // Session statistics
+    total_narrations: v.number(),
+    total_words: v.number(),
+    total_duration: v.number(), // Total session duration in seconds
+    items_processed: v.number(),
+    
+    // Session metadata
+    session_metadata: v.optional(v.string()), // JSON blob for additional session data
+  })
+    .index("by_session_id", ["session_id"])
+    .index("by_status", ["status"])
+    .index("by_created_at", ["created_at"])
+    .index("by_ended_at", ["ended_at"]),
+
   host_documents: defineTable({
-    document_id: v.string(), // Unique identifier for the document
-    title: v.string(),
-    content_text: v.string(), // Plain text version of the narration
+    session_id: v.optional(v.string()), // Make optional for migration from old schema
+    content_text: v.string(), // Current accumulated content for this session
     content_json: v.optional(v.string()), // Optional JSON metadata for future use
-    version: v.number(), // Document version number
     word_count: v.number(),
     character_count: v.number(),
-    status: v.union(v.literal("draft"), v.literal("active"), v.literal("archived")),
     created_at: v.number(),
     updated_at: v.number(),
-    // Host-specific metadata
-    generated_by_agent: v.boolean(),
+    
+    // Current narration metadata (for live updates)
+    current_narration_id: v.optional(v.string()), // ID of currently streaming narration
+    last_narration_type: v.optional(v.union(
+      v.literal("breaking"),
+      v.literal("developing"),
+      v.literal("analysis"),
+      v.literal("summary"),
+      v.literal("commentary")
+    )),
+    last_tone: v.optional(v.union(
+      v.literal("urgent"),
+      v.literal("informative"),
+      v.literal("conversational"),
+      v.literal("dramatic")
+    )),
+    last_priority: v.optional(v.union(
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    )),
+    
+    // Track source posts for this session
+    source_posts: v.optional(v.array(v.string())), // IDs of posts that influenced narrations in this session
+    generation_metadata: v.optional(v.string()), // JSON blob with latest generation details
+    
+    // Legacy fields (for backward compatibility during migration)
+    document_id: v.optional(v.string()),
+    title: v.optional(v.string()),
+    version: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("draft"), v.literal("active"), v.literal("archived"))),
+    generated_by_agent: v.optional(v.boolean()),
     narration_type: v.optional(v.union(
       v.literal("breaking"),
-      v.literal("developing"), 
+      v.literal("developing"),
       v.literal("analysis"),
       v.literal("summary"),
       v.literal("commentary")
@@ -129,21 +147,18 @@ export default defineSchema({
       v.literal("medium"),
       v.literal("low")
     )),
-    source_posts: v.optional(v.array(v.string())), // IDs of posts that influenced this narration
-    generation_metadata: v.optional(v.string()), // JSON blob with generation details
   })
-    .index("by_document_id", ["document_id"])
-    .index("by_status", ["status"])
+    .index("by_session_id", ["session_id"])
     .index("by_created_at", ["created_at"])
     .index("by_updated_at", ["updated_at"])
-    .index("by_version", ["version"])
-    .index("by_narration_type", ["narration_type"])
-    .index("by_tone", ["tone"])
-    .index("by_priority", ["priority"])
+    .index("by_current_narration_id", ["current_narration_id"])
+    // Legacy indexes (for migration period)
+    .index("by_document_id", ["document_id"])
+    .index("by_status", ["status"])
     // Search index for host documents
     .searchIndex("search_host_content", {
       searchField: "content_text",
-      filterFields: ["status", "generated_by_agent", "narration_type", "tone", "priority"]
+      filterFields: ["session_id", "last_narration_type", "last_tone", "last_priority"]
     }),
 
   story_history: defineTable({

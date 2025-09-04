@@ -167,7 +167,7 @@ export class EnhancedProcessingPipeline {
       
       // Save to database
       try {
-        await convex.mutation(api.redditPosts.storeLiveFeedPosts, {
+        await convex.mutation(api.redditFeed.storeLiveFeedPosts, {
           posts: [{
             id: publishedPost.id,
             title: publishedPost.title,

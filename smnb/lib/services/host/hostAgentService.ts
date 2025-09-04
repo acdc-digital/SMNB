@@ -645,7 +645,7 @@ ${contextSummary !== "No previous context" ? "Maintain continuity with previous 
         })
       };
 
-      await convex.mutation(api.redditPosts.updateHostDocument, document);
+      await convex.mutation(api.redditFeed.updateHostDocument, document);
       console.log(`💾 Saved host narration to database: ${narration.id}`);
       
     } catch (error) {

@@ -610,3 +610,127 @@ export const listHostDocuments = query({
     return documents;
   },
 });
+
+// Legacy function for backward compatibility (will be removed when hostAgentService is updated)
+export const updateHostDocument = mutation({
+  args: {
+    document_id: v.string(),
+    title: v.optional(v.string()),
+    content_text: v.optional(v.string()),
+    content_json: v.optional(v.string()),
+    generated_by_agent: v.optional(v.boolean()),
+    narration_type: v.optional(v.union(
+      v.literal("breaking"),
+      v.literal("developing"),
+      v.literal("analysis"),
+      v.literal("summary"),
+      v.literal("commentary")
+    )),
+    tone: v.optional(v.union(
+      v.literal("urgent"),
+      v.literal("informative"),
+      v.literal("conversational"),
+      v.literal("dramatic")
+    )),
+    priority: v.optional(v.union(
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    )),
+    source_posts: v.optional(v.array(v.string())),
+    generation_metadata: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    // For legacy compatibility, create a temporary session for this document
+    const sessionId = `legacy-${args.document_id}`;
+    
+    // Check if session exists
+    const existingSession = await ctx.db
+      .query("host_sessions")
+      .withIndex("by_session_id", (q) => q.eq("session_id", sessionId))
+      .first();
+    
+    if (!existingSession) {
+      // Create a session for this legacy document
+      await ctx.db.insert("host_sessions", {
+        session_id: sessionId,
+        title: args.title || "Legacy Host Session",
+        status: "active" as const,
+        created_at: Date.now(),
+        personality: "professional",
+        verbosity: "medium",
+        context_window: 5,
+        update_frequency: 2000,
+        total_narrations: 1,
+        total_words: args.content_text?.split(/\s+/).filter(word => word.length > 0).length || 0,
+        total_duration: 0,
+        items_processed: 1,
+        session_metadata: JSON.stringify({
+          legacy_document_id: args.document_id,
+          migration_type: "legacy_compatibility"
+        })
+      });
+    }
+    
+    // Update or create the host document
+    const existingDoc = await ctx.db
+      .query("host_documents")
+      .withIndex("by_session_id", (q) => q.eq("session_id", sessionId))
+      .first();
+    
+    const contentText = args.content_text || "";
+    const wordCount = contentText.split(/\s+/).filter(word => word.length > 0).length;
+    const characterCount = contentText.length;
+    
+    if (!existingDoc) {
+      const id = await ctx.db.insert("host_documents", {
+        session_id: sessionId,
+        content_text: contentText,
+        content_json: args.content_json || "{}",
+        word_count: wordCount,
+        character_count: characterCount,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_narration_type: args.narration_type,
+        last_tone: args.tone,
+        last_priority: args.priority,
+        source_posts: args.source_posts,
+        generation_metadata: args.generation_metadata,
+        // Legacy fields
+        document_id: args.document_id,
+        title: args.title,
+        version: 1,
+        status: "draft" as const,
+        generated_by_agent: args.generated_by_agent || false,
+        narration_type: args.narration_type,
+        tone: args.tone,
+        priority: args.priority,
+      });
+      
+      console.log(`📺 Created legacy host document: ${args.document_id}`);
+      return id;
+    } else {
+      await ctx.db.patch(existingDoc._id, {
+        content_text: contentText,
+        word_count: wordCount,
+        character_count: characterCount,
+        updated_at: Date.now(),
+        last_narration_type: args.narration_type,
+        last_tone: args.tone,
+        last_priority: args.priority,
+        source_posts: args.source_posts,
+        generation_metadata: args.generation_metadata,
+        // Legacy fields
+        title: args.title,
+        version: (existingDoc.version || 1) + 1,
+        generated_by_agent: args.generated_by_agent,
+        narration_type: args.narration_type,
+        tone: args.tone,
+        priority: args.priority,
+      });
+      
+      console.log(`🎙️ Updated legacy host document: ${args.document_id}`);
+      return existingDoc._id;
+    }
+  },
+});

@@ -393,7 +393,7 @@ export class EditorAgentService extends EventEmitter {
 
     // Save to database
     try {
-      await convex.mutation(api.redditPosts.updateEditorDocument, {
+      await convex.mutation(api.redditFeed.updateEditorDocument, {
         document_id: content.documentId,
         title: content.title,
         content_text: fullText,
