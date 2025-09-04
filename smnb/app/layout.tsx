@@ -1,3 +1,6 @@
+// ROOT LAYOUT
+// /Users/matthewsimon/Projects/SMNB/smnb/app/layout.tsx
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ConvexClientProvider from "@/components/providers/ConvexClientProvider";

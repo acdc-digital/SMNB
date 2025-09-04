@@ -1,3 +1,6 @@
+// SIMPLE LIVE FEED SERVICE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/livefeed/simpleLiveFeedService.ts
+
 import { LiveFeedPost } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 
 export interface SimpleLiveFeedServiceConfig {

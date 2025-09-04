@@ -1,3 +1,6 @@
+// CLAUDE API ROUTE
+// /Users/matthewsimon/Projects/SMNB/smnb/app/api/claude/route.ts
+
 /**
  * Claude API Route
  * 

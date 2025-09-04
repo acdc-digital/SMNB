@@ -1,3 +1,6 @@
+// REDDIT API ROUTE
+// /Users/matthewsimon/Projects/SMNB/smnb/app/api/reddit/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { redditAPI, RedditPost } from '@/lib/reddit';
 

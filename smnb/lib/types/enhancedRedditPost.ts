@@ -1,3 +1,6 @@
+// ENHANCED REDDIT POST TYPES
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/types/enhancedRedditPost.ts
+
 export interface EnhancedRedditPost {
   // Core Reddit data (existing)
   id: string;

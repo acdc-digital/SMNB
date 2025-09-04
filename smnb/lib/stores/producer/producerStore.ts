@@ -1,3 +1,6 @@
+// PRODUCER STORE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/stores/producer/producerStore.ts
+
 /**
  * Producer Agent Store
  * 

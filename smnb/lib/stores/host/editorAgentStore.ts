@@ -1,3 +1,6 @@
+// EDITOR AGENT STORE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/stores/host/editorAgentStore.ts
+
 /**
  * Editor Agent Store
  * 

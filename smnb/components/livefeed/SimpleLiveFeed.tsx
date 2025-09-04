@@ -1,3 +1,6 @@
+// SIMPLE LIVE FEED
+// /Users/matthewsimon/Projects/SMNB/smnb/components/livefeed/SimpleLiveFeed.tsx
+
 'use client';
 
 import { useEffect } from 'react';

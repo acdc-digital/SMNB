@@ -1,3 +1,6 @@
+// SCORING AGENT
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/livefeed/scoringAgent.ts
+
 import { EnhancedRedditPost, QueueConfig, DEFAULT_QUEUE_CONFIG } from '@/lib/types/enhancedRedditPost';
 
 export class ScoringAgent {

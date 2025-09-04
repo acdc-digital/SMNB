@@ -1,3 +1,6 @@
+// REDDIT ACTIONS
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/reddit-actions.ts
+
 'use server'
 
 import { redditAPI, RedditPost } from '@/lib/reddit-oauth';

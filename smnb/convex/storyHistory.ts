@@ -1,3 +1,6 @@
+// STORY HISTORY
+// /Users/matthewsimon/Projects/SMNB/smnb/convex/storyHistory.ts
+
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 

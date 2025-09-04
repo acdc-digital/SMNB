@@ -1,3 +1,6 @@
+// ENHANCED PROCESSING PIPELINE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/livefeed/enhancedProcessingPipeline.ts
+
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 import { enrichmentAgent } from './enrichmentAgent';
 import { scoringAgent } from './scoringAgent';

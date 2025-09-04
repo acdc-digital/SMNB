@@ -1,3 +1,6 @@
+// MOCK LLM SERVICE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/host/mockLLMService.ts
+
 /**
  * Mock LLM Service for Development
  * 

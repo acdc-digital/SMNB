@@ -1,3 +1,6 @@
+// ENRICHMENT AGENT
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/livefeed/enrichmentAgent.ts
+
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 
 export class EnrichmentAgent {

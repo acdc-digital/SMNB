@@ -1,3 +1,6 @@
+// HOST AGENT STORE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/stores/host/hostAgentStore.ts
+
 /**
  * Host Agent Store
  * 

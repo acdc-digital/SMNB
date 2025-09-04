@@ -1,3 +1,6 @@
+// DASHBOARD PAGE
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/page.tsx
+
 'use client';
 
 import React from "react";

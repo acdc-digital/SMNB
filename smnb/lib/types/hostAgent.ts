@@ -1,3 +1,6 @@
+// HOST AGENT TYPES
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/types/hostAgent.ts
+
 /**
  * Host Agent Type Definitions
  * 

@@ -1,3 +1,6 @@
+// HOME PAGE
+// /Users/matthewsimon/Projects/SMNB/smnb/app/page.tsx
+
 "use client";
 
 import { Button } from "@/components/ui/button";

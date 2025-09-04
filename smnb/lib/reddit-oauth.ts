@@ -1,3 +1,6 @@
+// REDDIT OAUTH
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/reddit-oauth.ts
+
 // Enhanced Reddit API client with OAuth support for 600/min rate limit
 export interface RedditPost {
   id: string;

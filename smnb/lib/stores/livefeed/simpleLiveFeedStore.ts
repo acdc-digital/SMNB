@@ -1,3 +1,6 @@
+// SIMPLE LIVE FEED STORE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/stores/livefeed/simpleLiveFeedStore.ts
+
 import { create } from 'zustand';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 

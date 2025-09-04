@@ -1,3 +1,6 @@
+// EVENT BUS SERVICE
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/services/eventBus.ts
+
 /**
  * Simple Event Bus for decoupling stores
  * 

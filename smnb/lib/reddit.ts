@@ -1,3 +1,6 @@
+// REDDIT API CLIENT
+// /Users/matthewsimon/Projects/SMNB/smnb/lib/reddit.ts
+
 // Reddit API client for fetching hot, rising, and trending posts
 export interface RedditPost {
   id: string;
