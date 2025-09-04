@@ -11,28 +11,125 @@ export async function GET(request: NextRequest) {
   const subreddit = searchParams.get('subreddit') || 'all';
   const sort = searchParams.get('sort') || 'hot';
   const limit = parseInt(searchParams.get('limit') || '10');
+  const query = searchParams.get('q'); // Search query parameter
 
   try {
-    const response = await redditAPI.fetchPosts(
-      subreddit,
-      sort as 'hot' | 'new' | 'rising' | 'top',
-      Math.min(limit, 25)
-    );
+    let response;
+    
+    console.log(`Reddit API: Processing request - query: "${query}", subreddit: "${subreddit}", sort: "${sort}", limit: ${limit}`);
+    
+    // For search requests, map sort values appropriately
+    if (query) {
+      const time = searchParams.get('t') || 'day';
+      console.log(`Reddit API: Attempting search with query: "${query}"`);
+      
+      // Map sort values for search API (search has different sort options)
+      let searchSort: 'relevance' | 'hot' | 'top' | 'new' | 'comments' = 'relevance';
+      switch (sort) {
+        case 'hot':
+          searchSort = 'hot';
+          break;
+        case 'new':
+          searchSort = 'new';
+          break;
+        case 'top':
+          searchSort = 'top';
+          break;
+        case 'rising': // rising is not available in search, use relevance
+          searchSort = 'relevance';
+          break;
+        default:
+          searchSort = 'relevance';
+      }
+      
+      try {
+        response = await redditAPI.searchPosts(
+          query,
+          subreddit,
+          searchSort,
+          time as 'hour' | 'day' | 'week' | 'month' | 'year' | 'all',
+          Math.min(limit, 25)
+        );
+        console.log(`Reddit API: Search successful with sort: ${searchSort}`);
+      } catch (searchError) {
+        console.error(`Reddit API: Search failed, falling back to regular fetch:`, searchError);
+        // Fall back to regular fetch
+        response = await redditAPI.fetchPosts(
+          subreddit,
+          sort as 'hot' | 'new' | 'rising' | 'top',
+          Math.min(limit, 25)
+        );
+        console.log(`Reddit API: Fallback fetch successful`);
+      }
+    } else {
+      // Otherwise use regular fetch
+      console.log(`Reddit API: Performing regular fetch`);
+      response = await redditAPI.fetchPosts(
+        subreddit,
+        sort as 'hot' | 'new' | 'rising' | 'top',
+        Math.min(limit, 25)
+      );
+    }
 
+    console.log(`Reddit API: Response received, children count: ${response.data?.children?.length || 0}`);
+    
     return NextResponse.json({
       success: true,
-      posts: response.data.children.map(child => child.data),
+      posts: response.data.children.map((child: { data: RedditPost }) => child.data),
       pagination: {
         after: response.data.after,
         before: response.data.before,
       }
     });
   } catch (error) {
-    console.error('Reddit API error:', error);
+    console.error('Reddit API error details:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Handle circuit breaker specifically
+    if (errorMessage.includes('Circuit breaker')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Reddit API is temporarily unavailable due to rate limits. Please try again later.',
+          circuitBreakerOpen: true,
+          posts: []
+        },
+        { status: 503 } // Service Unavailable
+      );
+    }
+    
+    // Handle rate limiting specifically
+    if (errorMessage.includes('Rate limited') || errorMessage.includes('429')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Reddit API rate limit reached. Please wait before making more requests.',
+          rateLimited: true,
+          posts: []
+        },
+        { status: 429 }
+      );
+    }
+    
+    // Handle access blocked
+    if (errorMessage.includes('blocked') || errorMessage.includes('403')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Reddit API access blocked. Try again later.',
+          blocked: true,
+          posts: []
+        },
+        { status: 403 }
+      );
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         posts: []
       },
       { status: 500 }
@@ -60,7 +157,7 @@ export async function POST(request: NextRequest) {
       );
       return {
         subreddit,
-        posts: response.data.children.map(child => child.data),
+        posts: response.data.children.map((child: { data: RedditPost }) => child.data),
       };
     });
 

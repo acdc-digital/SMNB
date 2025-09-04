@@ -318,6 +318,32 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
       ].slice(0, state.maxHistorySize); // Keep only the most recent
       
       console.log(`📚 HOST: Added narration to history. Total: ${newHistory.length}`);
+      
+      // Also add completed story to live feed history
+      import('@/lib/stores/livefeed/simpleLiveFeedStore').then(module => {
+        const completedStory = {
+          id: `host-${narration.id}`, // Prefix with 'host' for agent type identification
+          narrative: narration.narrative,
+          tone: narration.tone,
+          priority: narration.priority,
+          timestamp: new Date(),
+          duration: narration.duration,
+          originalItem: narration.metadata?.originalItem ? {
+            title: narration.metadata.originalItem.title || '',
+            author: narration.metadata.originalItem.author,
+            subreddit: narration.metadata.originalItem.subreddit,
+            url: narration.metadata.originalItem.url,
+          } : undefined,
+          sentiment: narration.metadata?.sentiment,
+          topics: narration.metadata?.topics,
+          summary: narration.metadata?.summary,
+        };
+        
+        const { addCompletedStory } = module.useSimpleLiveFeedStore.getState();
+        addCompletedStory(completedStory);
+        console.log(`📋 HOST: Added completed story to live feed history: "${narration.narrative.substring(0, 50)}..."`);
+      });
+      
       return { narrationHistory: newHistory };
     });
   },

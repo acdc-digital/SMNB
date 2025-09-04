@@ -56,6 +56,7 @@ export interface HostState {
   narrationQueue: HostNarration[];
   processedItems: Set<string>;
   context: NewsItem[];
+  producerContext?: ProducerContextData[];
   stats: {
     itemsProcessed: number;
     totalNarrations: number;
@@ -63,6 +64,26 @@ export interface HostState {
     queueLength: number;
     uptime: number; // seconds since started
   };
+}
+
+export interface ProducerContextData {
+  postId: string;
+  engagementMetrics?: {
+    totalScore: number;
+    comments: number;
+    subredditDiversity: number;
+  };
+  relatedDiscussions?: Array<{
+    subreddit: string;
+    title: string;
+    score: number;
+  }>;
+  trendData?: {
+    isBreaking: boolean;
+    isDeveloping: boolean;
+    keywords: string[];
+  };
+  receivedAt: number;
 }
 
 export interface LLMAnalysis {

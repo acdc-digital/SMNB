@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { enhancedProcessingPipeline } from '@/lib/services/livefeed/enhancedProcessingPipeline';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';

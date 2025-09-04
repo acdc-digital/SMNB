@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
+import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore';
+import { StudioMode } from '../Studio';
 import { 
   ChevronDown, 
   ChevronRight,
@@ -11,8 +13,9 @@ import {
   Settings,
   Activity,
   Zap,
-  Monitor,
-  Users
+  Users,
+  Mic,
+  Edit3
 } from "lucide-react";
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 import { LiveFeedPost } from '@/lib/stores/livefeed/simpleLiveFeedStore';
@@ -34,11 +37,16 @@ interface ControlSection {
   status: 'active' | 'inactive' | 'info';
 }
 
-export default function Controls() {
+interface ControlsProps {
+  mode: StudioMode;
+  onModeChange: (mode: StudioMode) => void;
+}
+
+export default function Controls({ mode, onModeChange }: ControlsProps) {
   const [newSubreddit, setNewSubreddit] = useState('');
   const [customSubreddits, setCustomSubreddits] = useState<string[]>([]);
   const [enabledDefaults, setEnabledDefaults] = useState<string[]>(['all', 'news', 'worldnews', 'technology']);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['feed-controls']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['feed-controls', 'mode-controls']));
   const [processedPostIds, setProcessedPostIds] = useState<Set<string>>(new Set());
   
   const { 
@@ -52,15 +60,29 @@ export default function Controls() {
 
   const {
     isActive: isHostActive,
-    start: startBroadcasting,
-    stop: stopBroadcasting,
+    start: startHostBroadcasting,
+    stop: stopHostBroadcasting,
     stats: hostStats,
     processLiveFeedPost
   } = useHostAgentStore();
 
+  const {
+    isActive: isEditorActive,
+    start: startEditorAgent,
+    stop: stopEditorAgent,
+    processPost: processEditorPost,
+    stats: editorStats
+  } = useEditorAgentStore();
+
   const allDefaultSubreddits = ['all', 'news', 'worldnews', 'technology', 'gaming', 'funny', 'todayilearned', 'askreddit'];
 
   const controlSections: ControlSection[] = [
+    {
+      id: 'mode-controls',
+      title: 'Studio Mode',
+      icon: Settings,
+      status: 'info'
+    },
     {
       id: 'feed-controls',
       title: 'Live Feed Controls',
@@ -68,10 +90,10 @@ export default function Controls() {
       status: isLive ? 'active' : 'inactive'
     },
     {
-      id: 'host-controls',
-      title: 'Host Configuration',
-      icon: Monitor,
-      status: isHostActive ? 'active' : 'inactive'
+      id: 'agent-controls',
+      title: mode === 'host' ? 'Host Configuration' : 'Editor Configuration',
+      icon: mode === 'host' ? Mic : Edit3,
+      status: (mode === 'host' ? isHostActive : isEditorActive) ? 'active' : 'inactive'
     },
     {
       id: 'subreddit-manager',
@@ -132,9 +154,11 @@ export default function Controls() {
     }
   };
 
-  // Auto-feed live feed posts to host when both are active
+  // Auto-feed live feed posts to current agent (host or editor) when both are active
   useEffect(() => {
-    if (!isLive || !isHostActive || posts.length === 0) {
+    const isAgentActive = mode === 'host' ? isHostActive : isEditorActive;
+    
+    if (!isLive || !isAgentActive || posts.length === 0) {
       return;
     }
 
@@ -145,30 +169,73 @@ export default function Controls() {
       return; // No new posts to process
     }
 
-    console.log(`🔄 HOST FEED: Found ${newPosts.length} new posts to process`);
+    const agentLabel = mode.toUpperCase();
+    console.log(`🔄 ${agentLabel} FEED: Found ${newPosts.length} new posts to process`);
     
     // Process new posts one by one with delays
     newPosts.slice(0, 5).forEach((post, index) => { // Process up to 5 new posts
       setTimeout(() => {
-        console.log(`📤 HOST FEED: Sending post ${index + 1}/${Math.min(newPosts.length, 5)} to host: ${post.title.substring(0, 50)}...`);
-        const enhancedPost = convertLiveFeedPostToEnhanced(post);
-        processLiveFeedPost(enhancedPost);
+        console.log(`📤 ${agentLabel} FEED: Sending post ${index + 1}/${Math.min(newPosts.length, 5)} to ${mode}: ${post.title.substring(0, 50)}...`);
+        
+        if (mode === 'host') {
+          const enhancedPost = convertLiveFeedPostToEnhanced(post);
+          processLiveFeedPost(enhancedPost);
+        } else if (mode === 'editor') {
+          processEditorPost(post as unknown as Record<string, unknown>);
+        }
         
         // Mark this post as processed
         setProcessedPostIds(prev => new Set(prev).add(post.id));
-        console.log(`✅ HOST FEED: Marked post as processed: ${post.id}`);
+        console.log(`✅ ${agentLabel} FEED: Marked post as processed: ${post.id}`);
       }, index * 3000); // 3-second delay between posts for better pacing
     });
 
-  }, [posts, isLive, isHostActive, processLiveFeedPost, processedPostIds, setProcessedPostIds]);
+  }, [posts, isLive, mode, isHostActive, isEditorActive, processLiveFeedPost, processEditorPost, processedPostIds]);
 
-  // Reset processed posts when host broadcasting state changes
+  // Additional effect to ensure continuous feeding - check for new posts every 10 seconds
   useEffect(() => {
-    if (!isHostActive) {
-      setProcessedPostIds(new Set()); // Clear processed posts when host stops
-      console.log('🗑️ HOST FEED: Cleared processed posts cache');
+    const isAgentActive = mode === 'host' ? isHostActive : isEditorActive;
+    
+    if (!isLive || !isAgentActive) {
+      return;
     }
-  }, [isHostActive, setProcessedPostIds]);
+
+    const interval = setInterval(() => {
+      const newPosts = posts.filter(post => !processedPostIds.has(post.id));
+      
+      if (newPosts.length > 0) {
+        const agentLabel = mode.toUpperCase();
+        console.log(`⏰ ${agentLabel} CONTINUOUS: Found ${newPosts.length} unprocessed posts, sending next batch...`);
+        
+        // Send next batch of posts
+        newPosts.slice(0, 3).forEach((post, index) => {
+          setTimeout(() => {
+            if (mode === 'host') {
+              const enhancedPost = convertLiveFeedPostToEnhanced(post);
+              processLiveFeedPost(enhancedPost);
+            } else if (mode === 'editor') {
+              processEditorPost(post as unknown as Record<string, unknown>);
+            }
+            
+            setProcessedPostIds(prev => new Set(prev).add(post.id));
+            console.log(`⏰ ${agentLabel} CONTINUOUS: Processed ${post.id}`);
+          }, index * 2000); // 2-second delay between posts
+        });
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [posts, isLive, mode, isHostActive, isEditorActive, processLiveFeedPost, processEditorPost, processedPostIds]);
+
+  // Reset processed posts when agent state changes
+  useEffect(() => {
+    const isAgentActive = mode === 'host' ? isHostActive : isEditorActive;
+    
+    if (!isAgentActive) {
+      setProcessedPostIds(new Set()); // Clear processed posts when agent stops
+      console.log(`🗑️ ${mode.toUpperCase()} FEED: Cleared processed posts cache`);
+    }
+  }, [mode, isHostActive, isEditorActive, setProcessedPostIds]);
 
   useEffect(() => {
     updateSelectedSubreddits(enabledDefaults, customSubreddits);
@@ -259,6 +326,107 @@ export default function Controls() {
                       </div>
                     )}
 
+                    {/* Mode Controls Section */}
+                    {section.id === 'mode-controls' && (
+                      <div className="space-y-3">
+                        <div className="text-muted-foreground text-xs uppercase">Studio Mode</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => onModeChange('host')}
+                            className={`px-3 py-2 text-xs rounded transition-colors cursor-pointer flex items-center gap-2 ${
+                              mode === 'host' 
+                                ? 'bg-blue-500 text-white border-2 border-blue-600' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            <Mic className="w-3 h-3" />
+                            Host
+                          </button>
+                          <button
+                            onClick={() => onModeChange('editor')}
+                            className={`px-3 py-2 text-xs rounded transition-colors cursor-pointer flex items-center gap-2 ${
+                              mode === 'editor' 
+                                ? 'bg-green-500 text-white border-2 border-green-600' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            Editor
+                          </button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {mode === 'host' ? 'Broadcasting live news narration' : 'Generating streaming editor content'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Agent Controls Section - Host or Editor based on mode */}
+                    {section.id === 'agent-controls' && mode === 'host' && (
+                      <div className="space-y-3">
+                        <div className="text-muted-foreground text-xs uppercase">Host Status</div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span>Status:</span>
+                            <span className={isHostActive ? 'text-green-400' : 'text-gray-400'}>
+                              {isHostActive ? 'Broadcasting' : 'Standby'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Narrations:</span>
+                            <span className="text-blue-400">{hostStats.totalNarrations}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Queue:</span>
+                            <span className="text-blue-400">{hostStats.queueLength}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={isHostActive ? stopHostBroadcasting : startHostBroadcasting}
+                          className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
+                            isHostActive 
+                              ? 'bg-red-500 hover:bg-red-600 text-white'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          {isHostActive ? '📴 Stop Broadcasting' : '📡 Start Broadcasting'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Editor Controls Section */}
+                    {section.id === 'agent-controls' && mode === 'editor' && (
+                      <div className="space-y-3">
+                        <div className="text-muted-foreground text-xs uppercase">Editor Status</div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span>Status:</span>
+                            <span className={isEditorActive ? 'text-green-400' : 'text-gray-400'}>
+                              {isEditorActive ? 'Generating' : 'Standby'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Words:</span>
+                            <span className="text-green-400">{editorStats.totalWords}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Sessions:</span>
+                            <span className="text-green-400">{editorStats.sessionsCompleted}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={isEditorActive ? stopEditorAgent : startEditorAgent}
+                          className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
+                            isEditorActive 
+                              ? 'bg-red-500 hover:bg-red-600 text-white'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                          }`}
+                        >
+                          {isEditorActive ? '⏹️ Stop Editor' : '✍️ Start Editor'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Keep existing host-controls section for backward compatibility */}
                     {section.id === 'host-controls' && (
                       <div className="space-y-3">
                         <div className="text-muted-foreground text-xs uppercase">Host Status</div>
@@ -279,7 +447,7 @@ export default function Controls() {
                           </div>
                         </div>
                         <button 
-                          onClick={isHostActive ? stopBroadcasting : startBroadcasting}
+                          onClick={isHostActive ? stopHostBroadcasting : startHostBroadcasting}
                           className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
                             isHostActive 
                               ? 'bg-red-500 hover:bg-red-600 text-white'

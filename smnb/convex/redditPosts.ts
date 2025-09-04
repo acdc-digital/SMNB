@@ -368,3 +368,248 @@ export const cleanupOldPosts = mutation({
     return { deleted: oldPosts.length };
   },
 });
+
+// Editor document functions
+export const createEditorDocument = mutation({
+  args: {
+    document_id: v.string(),
+    title: v.optional(v.string()),
+    content_text: v.optional(v.string()),
+    content_json: v.optional(v.string()),
+    generated_by_agent: v.optional(v.boolean()),
+    source_posts: v.optional(v.array(v.string())),
+    generation_metadata: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const contentText = args.content_text || "";
+    const contentJson = args.content_json || "{}";
+    
+    const id = await ctx.db.insert("editor_documents", {
+      document_id: args.document_id,
+      title: args.title || "Untitled Document",
+      content_text: contentText,
+      content_json: contentJson,
+      version: 1,
+      word_count: contentText.split(/\s+/).filter(word => word.length > 0).length,
+      character_count: contentText.length,
+      status: "draft" as const,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      generated_by_agent: args.generated_by_agent || false,
+      source_posts: args.source_posts,
+      generation_metadata: args.generation_metadata,
+    });
+
+    console.log(`📄 Created editor document: ${args.document_id}`);
+    return id;
+  },
+});
+
+export const updateEditorDocument = mutation({
+  args: {
+    document_id: v.string(),
+    title: v.optional(v.string()),
+    content_text: v.optional(v.string()),
+    content_json: v.optional(v.string()),
+    generated_by_agent: v.optional(v.boolean()),
+    source_posts: v.optional(v.array(v.string())),
+    generation_metadata: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const existing = await ctx.db
+      .query("editor_documents")
+      .withIndex("by_document_id", (q) => q.eq("document_id", args.document_id))
+      .first();
+
+    if (!existing) {
+      // Create new document if it doesn't exist - call the handler directly
+      const contentText = args.content_text || "";
+      const contentJson = args.content_json || "{}";
+      
+      const id = await ctx.db.insert("editor_documents", {
+        document_id: args.document_id,
+        title: args.title || "Untitled Document",
+        content_text: contentText,
+        content_json: contentJson,
+        version: 1,
+        word_count: contentText.split(/\s+/).filter(word => word.length > 0).length,
+        character_count: contentText.length,
+        status: "draft" as const,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        generated_by_agent: args.generated_by_agent || false,
+        source_posts: args.source_posts,
+        generation_metadata: args.generation_metadata,
+      });
+
+      console.log(`📄 Created editor document: ${args.document_id}`);
+      return id;
+    }
+
+    const updates: Record<string, unknown> = {
+      version: existing.version + 1,
+      updated_at: Date.now(),
+    };
+
+    if (args.title) updates.title = args.title;
+    if (args.content_text) {
+      updates.content_text = args.content_text;
+      updates.word_count = args.content_text.split(/\s+/).filter(word => word.length > 0).length;
+      updates.character_count = args.content_text.length;
+    }
+    if (args.content_json) updates.content_json = args.content_json;
+    if (args.generated_by_agent !== undefined) updates.generated_by_agent = args.generated_by_agent;
+    if (args.source_posts) updates.source_posts = args.source_posts;
+    if (args.generation_metadata) updates.generation_metadata = args.generation_metadata;
+
+    await ctx.db.patch(existing._id, updates);
+
+    console.log(`📝 Updated editor document: ${args.document_id} (v${existing.version + 1})`);
+    return existing._id;
+  },
+});
+
+export const getEditorDocument = query({
+  args: {
+    document_id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const document = await ctx.db
+      .query("editor_documents")
+      .withIndex("by_document_id", (q) => q.eq("document_id", args.document_id))
+      .first();
+
+    return document;
+  },
+});
+
+export const listEditorDocuments = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const documents = await ctx.db
+      .query("editor_documents")
+      .order("desc")
+      .take(args.limit || 10);
+
+    return documents;
+  },
+});
+
+// Host Documents Functions
+export const updateHostDocument = mutation({
+  args: {
+    document_id: v.string(),
+    title: v.optional(v.string()),
+    content_text: v.optional(v.string()),
+    content_json: v.optional(v.string()),
+    generated_by_agent: v.optional(v.boolean()),
+    narration_type: v.optional(v.union(
+      v.literal("breaking"),
+      v.literal("developing"), 
+      v.literal("analysis"),
+      v.literal("summary"),
+      v.literal("commentary")
+    )),
+    tone: v.optional(v.union(
+      v.literal("urgent"),
+      v.literal("informative"),
+      v.literal("conversational"),
+      v.literal("dramatic")
+    )),
+    priority: v.optional(v.union(
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    )),
+    source_posts: v.optional(v.array(v.string())),
+    generation_metadata: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const existing = await ctx.db
+      .query("host_documents")
+      .withIndex("by_document_id", (q) => q.eq("document_id", args.document_id))
+      .first();
+
+    if (!existing) {
+      // Create new document if it doesn't exist
+      const contentText = args.content_text || "";
+      const contentJson = args.content_json || "{}";
+      
+      const id = await ctx.db.insert("host_documents", {
+        document_id: args.document_id,
+        title: args.title || "Host Narration Session",
+        content_text: contentText,
+        content_json: contentJson,
+        version: 1,
+        word_count: contentText.split(/\s+/).filter(word => word.length > 0).length,
+        character_count: contentText.length,
+        status: "draft" as const,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        generated_by_agent: args.generated_by_agent || false,
+        narration_type: args.narration_type,
+        tone: args.tone,
+        priority: args.priority,
+        source_posts: args.source_posts,
+        generation_metadata: args.generation_metadata,
+      });
+
+      console.log(`📺 Created host document: ${args.document_id}`);
+      return id;
+    }
+
+    const updates: Record<string, unknown> = {
+      version: existing.version + 1,
+      updated_at: Date.now(),
+    };
+
+    if (args.title) updates.title = args.title;
+    if (args.content_text) {
+      updates.content_text = args.content_text;
+      updates.word_count = args.content_text.split(/\s+/).filter(word => word.length > 0).length;
+      updates.character_count = args.content_text.length;
+    }
+    if (args.content_json) updates.content_json = args.content_json;
+    if (args.generated_by_agent !== undefined) updates.generated_by_agent = args.generated_by_agent;
+    if (args.narration_type) updates.narration_type = args.narration_type;
+    if (args.tone) updates.tone = args.tone;
+    if (args.priority) updates.priority = args.priority;
+    if (args.source_posts) updates.source_posts = args.source_posts;
+    if (args.generation_metadata) updates.generation_metadata = args.generation_metadata;
+
+    await ctx.db.patch(existing._id, updates);
+
+    console.log(`🎙️ Updated host document: ${args.document_id} (v${existing.version + 1})`);
+    return existing._id;
+  },
+});
+
+export const getHostDocument = query({
+  args: {
+    document_id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const document = await ctx.db
+      .query("host_documents")
+      .withIndex("by_document_id", (q) => q.eq("document_id", args.document_id))
+      .first();
+
+    return document;
+  },
+});
+
+export const listHostDocuments = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const documents = await ctx.db
+      .query("host_documents")
+      .order("desc")
+      .take(args.limit || 10);
+
+    return documents;
+  },
+});

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
+import { useProducerStore } from '@/lib/stores/producer/producerStore';
 import { enhancedProcessingPipeline } from '@/lib/services/livefeed/enhancedProcessingPipeline';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 
@@ -10,8 +11,6 @@ interface SimpleLiveFeedProps {
 }
 
 export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
-  const [reducedMotion, setReducedMotion] = useState(false);
-  
   const {
     posts,
     isLive,
@@ -28,16 +27,46 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
     clearOldPosts,
   } = useSimpleLiveFeedStore();
 
-  // Check for reduced motion preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mediaQuery.matches);
+  const { getPostMetrics } = useProducerStore();
+
+  // Component to render Producer validation badges
+  const ProducerMetrics = ({ postId }: { postId: string }) => {
+    const metrics = getPostMetrics(postId);
     
-    const handleChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+    if (!metrics) return null;
+
+    return (
+      <div className="flex flex-wrap gap-1 mt-2">
+        {/* Duplicate Analysis Badge */}
+        {metrics.metrics.totalDuplicates > 1 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 animate-in zoom-in-50">
+            🔍 {metrics.metrics.totalDuplicates} duplicates
+          </span>
+        )}
+        
+        {/* Subreddit Diversity Badge */}
+        {metrics.metrics.subredditDiversity > 3 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 animate-in zoom-in-50">
+            🌐 {metrics.metrics.subredditDiversity} communities
+          </span>
+        )}
+        
+        {/* High Engagement Badge */}
+        {metrics.metrics.totalEngagement > 10000 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 animate-in zoom-in-50">
+            🔥 {(metrics.metrics.totalEngagement / 1000).toFixed(1)}k engagement
+          </span>
+        )}
+        
+        {/* Verification Badge */}
+        {metrics.priority === 'high' && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 animate-in zoom-in-50">
+            ✅ Verified trending
+          </span>
+        )}
+      </div>
+    );
+  };
 
   // Start/stop service when isLive changes
   useEffect(() => {
@@ -147,40 +176,23 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
       </div>
 
       {/* Posts */}
-      <motion.div 
-        className="space-y-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <div className="space-y-3 animate-in fade-in duration-500">
         {posts.length === 0 ? (
-          <motion.div 
-            className="text-center py-8 text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
+          <div className="text-center py-8 text-muted-foreground animate-in fade-in duration-500">
             {isLive ? 'Waiting for posts...' : 'Start the live feed to see posts'}
-          </motion.div>
+          </div>
         ) : (
-          <AnimatePresence mode="popLayout">
+          <div>
             {posts.map((post) => (
-              <motion.div
+              <div
                 key={`${post.id}-${post.addedAt}`}
-                variants={postVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                layout
                 className={`
-                  bg-card border border-border p-4 rounded-lg shadow-sm
+                  bg-card border border-border p-4 rounded-lg shadow-sm mb-3
+                  transition-all ease-in-out
+                  hover:scale-[1.02] hover:shadow-md
+                  animate-in slide-in-from-top-2 fade-in
                   ${post.isNew ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-50 dark:bg-green-950/20' : ''}
-                  will-change-transform
                 `}
-                whileHover={shouldReduceMotion ? {} : {
-                  scale: 1.02,
-                  transition: { duration: 0.2 }
-                }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -190,34 +202,19 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                       </h3>
                       {/* Enhanced indicators */}
                       {post.priority_score && post.priority_score > 0.7 && (
-                        <motion.span 
-                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.3, type: "spring" }}
-                        >
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 animate-in zoom-in-50 delay-300">
                           ⭐ High Priority
-                        </motion.span>
+                        </span>
                       )}
                       {post.sentiment === 'positive' && (
-                        <motion.span 
-                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.4, type: "spring" }}
-                        >
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 animate-in zoom-in-50 delay-500">
                           😊 Positive
-                        </motion.span>
+                        </span>
                       )}
                       {post.sentiment === 'negative' && (
-                        <motion.span 
-                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.4, type: "spring" }}
-                        >
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 animate-in zoom-in-50 delay-500">
                           😔 Critical
-                        </motion.span>
+                        </span>
                       )}
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
@@ -241,29 +238,27 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                         </span>
                       )}
                     </div>
+                    
+                    {/* Producer Intelligence Badges */}
+                    <ProducerMetrics postId={post.id} />
                   </div>
                   
                   <div className="ml-4 flex-shrink-0">
-                    <motion.a
+                    <a
                       href={post.permalink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm cursor-pointer"
-                      whileHover={shouldReduceMotion ? {} : { 
-                        scale: 1.1,
-                        transition: { duration: 0.2 }
-                      }}
-                      whileTap={{ scale: 0.95 }}
+                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm cursor-pointer transition-all hover:scale-110 active:scale-95"
                     >
                       View →
-                    </motion.a>
+                    </a>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </AnimatePresence>
+          </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

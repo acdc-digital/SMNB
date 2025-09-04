@@ -32,11 +32,85 @@ export interface RedditResponse {
 export type SortType = 'hot' | 'new' | 'rising' | 'top';
 export type TimeFilter = 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
 
+// Global rate limiting state shared across all instances
+class GlobalRateLimiter {
+  private static instance: GlobalRateLimiter;
+  private lastRequestTime = 0;
+  private rateLimitBackoff = 0;
+  private minRequestInterval = 5000; // Increased to 5 seconds
+  private maxBackoff = 60000; // Max 1 minute backoff
+  private backoffIncrement = 10000; // 10 second increments
+  private circuitBreakerThreshold = 30000; // 30 seconds - circuit breaker threshold
+  private circuitBreakerResetTime = 120000; // 2 minutes to reset circuit breaker
+  private isCircuitBreakerOpen = false;
+  private circuitBreakerOpenedAt = 0;
+
+  static getInstance(): GlobalRateLimiter {
+    if (!GlobalRateLimiter.instance) {
+      GlobalRateLimiter.instance = new GlobalRateLimiter();
+    }
+    return GlobalRateLimiter.instance;
+  }
+
+  async waitForNextRequest(): Promise<void> {
+    // Check if circuit breaker should be reset
+    if (this.isCircuitBreakerOpen) {
+      const timeSinceOpened = Date.now() - this.circuitBreakerOpenedAt;
+      if (timeSinceOpened > this.circuitBreakerResetTime) {
+        console.log('🔄 Circuit breaker reset - attempting to resume Reddit API calls');
+        this.isCircuitBreakerOpen = false;
+        this.rateLimitBackoff = Math.floor(this.rateLimitBackoff / 2); // Reduce backoff on reset
+      } else {
+        const remainingTime = this.circuitBreakerResetTime - timeSinceOpened;
+        throw new Error(`Circuit breaker is open - Reddit API calls suspended for ${Math.round(remainingTime / 1000)} more seconds`);
+      }
+    }
+
+    const now = Date.now();
+    const totalDelay = this.minRequestInterval + this.rateLimitBackoff;
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < totalDelay) {
+      const delay = totalDelay - timeSinceLastRequest;
+      console.log(`⏳ Global rate limiter: waiting ${delay}ms (backoff: ${this.rateLimitBackoff}ms)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastRequestTime = Date.now();
+  }
+
+  increaseBackoff(): void {
+    this.rateLimitBackoff = Math.min(this.rateLimitBackoff + this.backoffIncrement, this.maxBackoff);
+    console.warn(`⚠️ Rate limit hit - backoff increased to ${this.rateLimitBackoff}ms`);
+    
+    // Open circuit breaker if backoff is too high
+    if (this.rateLimitBackoff >= this.circuitBreakerThreshold && !this.isCircuitBreakerOpen) {
+      this.isCircuitBreakerOpen = true;
+      this.circuitBreakerOpenedAt = Date.now();
+      console.error(`🚫 Circuit breaker opened - suspending Reddit API calls for ${this.circuitBreakerResetTime / 1000} seconds`);
+    }
+  }
+
+  decreaseBackoff(): void {
+    if (this.rateLimitBackoff > 0) {
+      this.rateLimitBackoff = Math.max(0, this.rateLimitBackoff - (this.backoffIncrement / 2));
+      console.log(`✅ Request succeeded - backoff reduced to ${this.rateLimitBackoff}ms`);
+    }
+  }
+
+  getCurrentBackoff(): number {
+    return this.rateLimitBackoff;
+  }
+
+  isCircuitOpen(): boolean {
+    return this.isCircuitBreakerOpen;
+  }
+}
+
 class RedditAPI {
   private baseUrl = 'https://www.reddit.com';
   private userAgent = 'Mozilla/5.0 (compatible; SMNB-Reddit-Client/1.0; +https://github.com/acdc-digital/smnb)';
-  private lastRequestTime = 0;
-  private minRequestInterval = 2000; // 2 seconds between requests to be more respectful
+  private rateLimiter = GlobalRateLimiter.getInstance();
 
   /**
    * Fetch posts from a specific subreddit or r/all
@@ -69,16 +143,10 @@ class RedditAPI {
     const url = `${this.baseUrl}/r/${subreddit}/${sort}.json?${params}`;
 
     try {
-      // Rate limiting: ensure minimum interval between requests
-      const now = Date.now();
-      const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < this.minRequestInterval) {
-        const delay = this.minRequestInterval - timeSinceLastRequest;
-        console.log(`⏳ Rate limiting: waiting ${delay}ms before request`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      // Use global rate limiter
+      await this.rateLimiter.waitForNextRequest();
       
-      console.log(`🌐 Fetching Reddit: ${url}`);
+      console.log(`🌐 Fetching Reddit: ${url} (backoff: ${this.rateLimiter.getCurrentBackoff()}ms)`);
       
       const response = await fetch(url, {
         headers: {
@@ -92,7 +160,6 @@ class RedditAPI {
         method: 'GET',
       });
 
-      this.lastRequestTime = Date.now();
       console.log(`📊 Reddit response: ${response.status} ${response.statusText}`);
 
       if (!response.ok) {
@@ -105,12 +172,16 @@ class RedditAPI {
         }
         
         if (response.status === 429) {
-          console.warn(`⚠️ Rate limited by Reddit for r/${subreddit}`);
+          // Increase global backoff
+          this.rateLimiter.increaseBackoff();
           throw new Error(`Rate limited by Reddit for r/${subreddit}. Please slow down requests.`);
         }
         
         throw new Error(`Reddit API error: ${response.status} ${response.statusText}`);
       }
+
+      // Success - reduce backoff gradually
+      this.rateLimiter.decreaseBackoff();
 
       return await response.json();
     } catch (error) {
@@ -174,16 +245,34 @@ class RedditAPI {
     const url = `${this.baseUrl}/r/${subreddit}/search.json?${params}`;
 
     try {
+      // Use global rate limiter for search requests too
+      await this.rateLimiter.waitForNextRequest();
+      
+      console.log(`🔍 Searching Reddit: ${url} (backoff: ${this.rateLimiter.getCurrentBackoff()}ms)`);
+      
       const response = await fetch(url, {
         headers: {
           'User-Agent': this.userAgent,
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
       });
 
+      console.log(`🔍 Search response: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
+        if (response.status === 429) {
+          this.rateLimiter.increaseBackoff();
+        }
         throw new Error(`Reddit search error: ${response.status} ${response.statusText}`);
       }
 
+      // Success - reduce backoff
+      this.rateLimiter.decreaseBackoff();
+      
       return await response.json();
     } catch (error) {
       console.error('Error searching Reddit posts:', error);
@@ -213,6 +302,93 @@ class RedditAPI {
       console.error('Error fetching post details:', error);
       throw error;
     }
+  }
+
+  /**
+   * Find duplicate posts for a given article URL
+   * @param articleUrl - The URL of the article to find duplicates for
+   * @param limit - Number of duplicate posts to return (1-100)
+   */
+  async getDuplicates(articleUrl: string, limit: number = 25) {
+    // Extract the post ID from the URL if it's a Reddit permalink
+    let url: string;
+    
+    if (articleUrl.includes('reddit.com/r/')) {
+      // If it's a Reddit permalink, use the duplicates endpoint
+      const match = articleUrl.match(/\/r\/([^\/]+)\/comments\/([^\/]+)/);
+      if (match) {
+        const [, subreddit, postId] = match;
+        url = `${this.baseUrl}/r/${subreddit}/duplicates/${postId}.json`;
+      } else {
+        throw new Error('Invalid Reddit URL format');
+      }
+    } else {
+      // For external URLs, search for posts linking to that URL
+      return await this.searchPosts(`url:"${articleUrl}"`, 'all', 'top', 'all', limit);
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Reddit duplicates API error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Reddit duplicates:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze duplicate metrics for a story
+   * @param duplicates - Response from getDuplicates
+   */
+  analyzeDuplicateMetrics(duplicates: RedditResponse[]) {
+    if (!Array.isArray(duplicates) || duplicates.length < 2) {
+      return {
+        totalDuplicates: 0,
+        subredditDiversity: 0,
+        totalEngagement: 0,
+        averageScore: 0,
+        subreddits: [],
+        engagementBySubreddit: {}
+      };
+    }
+
+    const posts = duplicates[1]?.data?.children || [];
+    const subreddits = new Set<string>();
+    let totalScore = 0;
+    let totalComments = 0;
+    const engagementBySubreddit: { [key: string]: { score: number; comments: number; count: number } } = {};
+
+    posts.forEach(post => {
+      const postData = post.data;
+      subreddits.add(postData.subreddit);
+      totalScore += postData.score;
+      totalComments += postData.num_comments;
+
+      if (!engagementBySubreddit[postData.subreddit]) {
+        engagementBySubreddit[postData.subreddit] = { score: 0, comments: 0, count: 0 };
+      }
+      engagementBySubreddit[postData.subreddit].score += postData.score;
+      engagementBySubreddit[postData.subreddit].comments += postData.num_comments;
+      engagementBySubreddit[postData.subreddit].count += 1;
+    });
+
+    return {
+      totalDuplicates: posts.length,
+      subredditDiversity: subreddits.size,
+      totalEngagement: totalScore + totalComments,
+      averageScore: posts.length > 0 ? totalScore / posts.length : 0,
+      subreddits: Array.from(subreddits),
+      engagementBySubreddit
+    };
   }
 }
 

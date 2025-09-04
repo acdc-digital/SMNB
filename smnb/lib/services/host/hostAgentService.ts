@@ -6,11 +6,13 @@
  */
 
 import { EventEmitter } from 'events';
+import { ConvexHttpClient } from 'convex/browser';
 import { 
   NewsItem, 
   HostNarration, 
   HostAgentConfig, 
   HostState,
+  ProducerContextData,
   LLMAnalysis,
   DEFAULT_HOST_CONFIG,
   HOST_PERSONALITIES,
@@ -18,6 +20,7 @@ import {
 } from '@/lib/types/hostAgent';
 import { MockLLMService } from './mockLLMService';
 import { ClaudeLLMService } from './claudeLLMService';
+import { api } from '@/convex/_generated/api';
 
 export class HostAgentService extends EventEmitter {
   private state: HostState;
@@ -53,6 +56,7 @@ export class HostAgentService extends EventEmitter {
       narrationQueue: [],
       processedItems: new Set(),
       context: [],
+      producerContext: [],
       stats: {
         itemsProcessed: 0,
         totalNarrations: 0,
@@ -214,6 +218,35 @@ export class HostAgentService extends EventEmitter {
     this.on('error', (error: Error) => {
       console.error('🚨 Host agent error:', error);
     });
+
+    // Listen for Producer context events
+    this.on('context:host', (context: ProducerContextData) => {
+      console.log('🏭➡️🎙️ Received Producer context:', context);
+      this.integrateProducerContext(context);
+    });
+  }
+
+  // New method to integrate Producer context into Host narrations
+  private integrateProducerContext(context: ProducerContextData): void {
+    try {
+      // Store context for use in next narration
+      if (!this.state.producerContext) {
+        this.state.producerContext = [];
+      }
+      this.state.producerContext.push({
+        ...context,
+        receivedAt: Date.now()
+      });
+
+      // Keep only recent context (last 10 items)
+      if (this.state.producerContext.length > 10) {
+        this.state.producerContext.shift();
+      }
+
+      console.log(`🏭➡️🎙️ Integrated Producer context for post ${context.postId || 'unknown'}`);
+    } catch (error) {
+      console.error('🏭➡️🎙️ Failed to integrate Producer context:', error);
+    }
   }
 
   private updateContext(item: NewsItem): void {
@@ -307,6 +340,12 @@ export class HostAgentService extends EventEmitter {
           }
 
           console.log(`✅ Live streaming completed for: ${narration.id}`);
+          
+          // Save to host document database (async, don't block)
+          this.saveNarrationToDatabase(narration, fullText).catch(error => {
+            console.error('❌ Failed to save host narration to database:', error);
+          });
+          
           this.emit('narration:completed', narration.id, fullText);
           
           // Set cooldown timestamp and clear current narration
@@ -546,6 +585,12 @@ ${contextSummary !== "No previous context" ? "Maintain continuity with previous 
     }
     
     // Complete the narration
+    
+    // Save to host document database (async, don't block)
+    this.saveNarrationToDatabase(narration, text).catch((error: unknown) => {
+      console.error('❌ Failed to save host narration to database:', error);
+    });
+    
     this.emit('narration:completed', narration.id, text);
     this.state.currentNarration = null;
     
@@ -569,6 +614,72 @@ ${contextSummary !== "No previous context" ? "Maintain continuity with previous 
     }
     
     this.emit('stats:updated', this.state.stats);
+  }
+
+  /**
+   * Save completed narration to host_documents database
+   * Follows the same pattern as editor documents with session-based storage
+   */
+  private async saveNarrationToDatabase(narration: HostNarration, content: string): Promise<void> {
+    try {
+      const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+      
+      const document = {
+        document_id: narration.id,
+        title: narration.metadata?.summary || 'Host Narration',
+        content_text: content,
+        generated_by_agent: true,
+        narration_type: this.mapToneToNarrationType(narration.tone),
+        tone: this.mapToneToValidTone(narration.tone),
+        priority: narration.priority,
+        source_posts: narration.newsItemId ? [narration.newsItemId] : [],
+        generation_metadata: JSON.stringify({
+          narrative: narration.narrative,
+          topics: narration.metadata?.topics || [],
+          sentiment: narration.metadata?.sentiment,
+          duration: narration.duration,
+          news_item_id: narration.newsItemId,
+          generated_at: new Date().toISOString(),
+          agent_type: 'host',
+          session_type: 'broadcast'
+        })
+      };
+
+      await convex.mutation(api.redditPosts.updateHostDocument, document);
+      console.log(`💾 Saved host narration to database: ${narration.id}`);
+      
+    } catch (error) {
+      console.error('❌ Failed to save host narration:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Map HostNarration tone to valid narration_type for database
+   */
+  private mapToneToNarrationType(tone: string): "breaking" | "developing" | "analysis" | "summary" | "commentary" {
+    switch (tone) {
+      case 'breaking': return 'breaking';
+      case 'developing': return 'developing';
+      case 'analysis': return 'analysis';
+      case 'opinion': return 'commentary';
+      case 'human-interest': return 'summary';
+      default: return 'analysis';
+    }
+  }
+
+  /**
+   * Map HostNarration tone to valid tone for database
+   */
+  private mapToneToValidTone(tone: string): "urgent" | "informative" | "conversational" | "dramatic" {
+    switch (tone) {
+      case 'breaking': return 'urgent';
+      case 'developing': return 'urgent';
+      case 'analysis': return 'informative';
+      case 'opinion': return 'conversational';
+      case 'human-interest': return 'conversational';
+      default: return 'informative';
+    }
   }
 }
 

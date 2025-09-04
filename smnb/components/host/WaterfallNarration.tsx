@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
 import { HostNarration } from '@/lib/types/hostAgent';
 import styles from './WaterfallNarration.module.css';
@@ -27,18 +27,8 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
   const { 
     isStreaming, 
     streamingText, 
-    streamingNarrationId, 
-    narrationHistory, 
-    clearNarrationHistory,
     currentNarration
   } = useHostAgentStore();
-
-  // Memoize filtered history to prevent re-filtering on every character
-  const filteredHistory = useMemo(() => {
-    return narrationHistory.filter((historyNarration: HostNarration) => 
-      !streamingNarrationId || historyNarration.id !== streamingNarrationId
-    );
-  }, [narrationHistory, streamingNarrationId]);
   
   const getToneEmoji = (tone: HostNarration['tone']): string => {
     switch (tone) {
@@ -77,10 +67,6 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
             </span>
           </div>
         </div>
-        
-        <div className="text-xs text-muted-foreground">
-          {narrationHistory.length} narrations
-        </div>
       </div>
 
       {/* Scrollable content area */}
@@ -106,45 +92,8 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
           </div>
         )}
 
-        {/* Historical narrations */}
-        {filteredHistory.length > 0 && (
-          <div className="mt-8 pt-4 border-t border-border/30">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">History</span>
-              <div className="flex-1 h-px bg-border/20"></div>
-            </div>
-            <div className="space-y-3">
-              {filteredHistory.map((narration: HostNarration, index: number) => (
-                  <div
-                    key={`${narration.id}-${index}`}
-                    className={`${styles.historyItem} p-3 rounded-lg border transition-all duration-500 ${
-                      index === 0 ? 'opacity-90 border-gray-500/20 bg-gray-500/5' :
-                      index === 1 ? 'opacity-75 border-gray-500/15 bg-gray-500/3' :
-                      index === 2 ? 'opacity-60 border-gray-500/10 bg-gray-500/2' :
-                      'opacity-45 border-gray-500/5 bg-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2 text-xs">
-                      <span>{getToneEmoji(narration.tone)}</span>
-                      <span>{getPriorityEmoji(narration.priority)}</span>
-                      <span className="text-muted-foreground">
-                        {narration.tone} • {narration.priority}
-                      </span>
-                      <span className="text-muted-foreground ml-auto">
-                        {narration.timestamp.toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="text-sm leading-relaxed text-muted-foreground">
-                      {narration.narrative}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
         {/* Empty state */}
-        {filteredHistory.length === 0 && !streamingText && (
+        {!streamingText && (
           <div className={styles.emptyState}>
             <div className="text-4xl mb-4">🎙️</div>
             <div className="text-lg font-medium mb-2">
@@ -153,18 +102,6 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
             <div className="text-sm">
               {isActive ? 'New stories will appear here' : 'Start the host to begin broadcasting'}
             </div>
-          </div>
-        )}
-
-        {/* Clear history button */}
-        {filteredHistory.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-border/30">
-            <button
-              onClick={clearNarrationHistory}
-              className="px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors cursor-pointer"
-            >
-              🗑️ Clear History ({narrationHistory.length})
-            </button>
           </div>
         )}
       </div>

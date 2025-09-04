@@ -36,6 +36,14 @@ export class MockLLMService {
     // Simulate API delay
     await this.simulateDelay();
 
+    // Check if this is an editor content request (long-form article)
+    const isEditorContent = prompt.includes('approximately') && 
+                           (prompt.includes('words') || prompt.includes('article') || prompt.includes('piece'));
+    
+    if (isEditorContent) {
+      return this.generateMockEditorContent(prompt, options);
+    }
+
     // Extract key information from prompt to generate relevant response
     const isBreaking = prompt.toLowerCase().includes('breaking');
     const platform = this.extractPlatform(prompt);
@@ -69,12 +77,10 @@ export class MockLLMService {
       const fullText = await this.generate(prompt, options);
       
       // Simulate streaming by sending chunks character by character
-      let currentText = '';
       const chunkSize = Math.max(1, Math.floor(Math.random() * 5) + 1); // 1-5 chars per chunk
       
       for (let i = 0; i < fullText.length; i += chunkSize) {
         const chunk = fullText.slice(i, i + chunkSize);
-        currentText += chunk;
         
         // Simulate streaming delay
         await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
@@ -271,6 +277,70 @@ export class MockLLMService {
     const keywordBoost = this.extractTopics(content).length * 0.1;
     
     return Math.min(baseScore + keywordBoost, 1);
+  }
+
+  private generateMockEditorContent(prompt: string, options?: { maxTokens?: number }): string {
+    // Extract topic information from the prompt
+    const topicMatch = prompt.match(/Topics: ([^\\n]+)/);
+    const topics = topicMatch ? topicMatch[1].split(', ').slice(0, 3) : ['technology', 'innovation', 'industry'];
+    
+    const targetWords = options?.maxTokens ? Math.floor(options.maxTokens * 0.75) : 1500;
+    
+    // Generate a comprehensive article
+    const title = `The Future of ${topics[0].charAt(0).toUpperCase() + topics[0].slice(1)}`;
+    
+    const sections = [
+      `# ${title}
+
+In recent developments across the ${topics.join(', ')} sectors, significant changes are reshaping how we understand and interact with these evolving landscapes. Industry experts and analysts are closely monitoring these trends as they unfold, providing valuable insights into what these changes mean for consumers, businesses, and the broader market.`,
+
+      `## Understanding the Current Landscape
+
+The current state of ${topics[0]} reflects a complex interplay of technological advancement, consumer demand, and regulatory considerations. Market analysts have identified several key factors driving these changes, including increased investment in research and development, shifting consumer preferences, and the emergence of new competitive dynamics.
+
+Recent studies indicate that organizations across various sectors are adapting their strategies to accommodate these evolving conditions. This adaptation process involves significant investment in infrastructure, training, and technology upgrades that position companies for long-term success.`,
+
+      `## Key Developments and Trends
+
+Several notable developments have emerged in recent months that are worth examining in detail. These include advances in automation, improvements in user experience design, and the implementation of more sophisticated data analytics capabilities.
+
+Industry leaders are particularly focused on sustainability initiatives and ethical considerations as they navigate these changes. This focus reflects growing consumer awareness and regulatory pressure to address environmental and social concerns while maintaining competitive advantages.
+
+The integration of artificial intelligence and machine learning technologies has become increasingly prevalent, enabling organizations to process information more efficiently and make data-driven decisions with greater confidence.`,
+
+      `## Impact and Implications
+
+The implications of these developments extend far beyond immediate industry boundaries. Cross-sector collaboration has become more common as organizations recognize the interconnected nature of modern business environments.
+
+Consumer behavior patterns are evolving in response to these changes, with increased emphasis on personalization, convenience, and transparency. This shift is driving companies to reconsider their customer engagement strategies and invest in more responsive service delivery models.
+
+Economic indicators suggest that these trends will continue to influence market dynamics for the foreseeable future, creating both opportunities and challenges for stakeholders at all levels.`,
+
+      `## Looking Forward
+
+As these developments continue to unfold, industry observers are tracking several key metrics that will help determine the long-term success of current initiatives. These include adoption rates, user satisfaction scores, and return on investment measurements.
+
+The next phase of development is expected to focus on scalability and integration challenges, as organizations work to implement solutions that can grow with their evolving needs. This will require continued investment in infrastructure and human resources, as well as ongoing collaboration between technology providers and end users.
+
+Future success will likely depend on the ability to balance innovation with stability, ensuring that new developments enhance rather than disrupt existing operations while providing clear value to all stakeholders involved.`
+    ];
+
+    // Join sections and adjust length to target
+    let content = sections.join('\n\n');
+    const words = content.split(/\\s+/);
+    
+    if (words.length > targetWords) {
+      content = words.slice(0, targetWords).join(' ') + '...';
+    } else if (words.length < targetWords * 0.8) {
+      // Add conclusion if content is too short
+      content += `\n\n## Conclusion
+
+These developments represent a significant step forward in the evolution of ${topics.join(' and ')} sectors. As organizations continue to adapt and innovate, the focus remains on delivering value while addressing the complex challenges of modern business environments.
+
+The continued monitoring of these trends will be essential for understanding their long-term impact and ensuring that stakeholders can make informed decisions about future investments and strategic directions.`;
+    }
+
+    return content;
   }
 
   // Utility methods for testing different scenarios

@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as redditPosts from "../redditPosts.js";
+import type * as storyHistory from "../storyHistory.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -25,6 +26,7 @@ import type * as redditPosts from "../redditPosts.js";
  */
 declare const fullApi: ApiFromModules<{
   redditPosts: typeof redditPosts;
+  storyHistory: typeof storyHistory;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

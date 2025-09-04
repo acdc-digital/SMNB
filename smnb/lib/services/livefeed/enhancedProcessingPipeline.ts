@@ -2,6 +2,9 @@ import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 import { enrichmentAgent } from './enrichmentAgent';
 import { scoringAgent } from './scoringAgent';
 import { schedulerService } from './schedulerService';
+import { analyzePostWithProducer } from '@/lib/stores/producer/producerStore';
+import convex from '@/lib/convex';
+import { api } from '@/convex/_generated/api';
 
 export interface PipelineConfig {
   subreddits: string[];
@@ -23,7 +26,7 @@ export interface PipelineStats {
 
 /**
  * Enhanced Processing Pipeline that orchestrates the entire flow:
- * Raw Posts → Enrichment → Scoring → Scheduling → Publishing
+ * Raw Posts → Enrichment → Producer Analysis → Scoring → Scheduling → Publishing
  */
 export class EnhancedProcessingPipeline {
   private posts: EnhancedRedditPost[] = [];
@@ -162,6 +165,43 @@ export class EnhancedProcessingPipeline {
       const publishedPost = schedulerService.markAsPublished([postToPublish])[0];
       this.markPostAsPublished(publishedPost);
       
+      // Save to database
+      try {
+        await convex.mutation(api.redditPosts.storeLiveFeedPosts, {
+          posts: [{
+            id: publishedPost.id,
+            title: publishedPost.title,
+            author: publishedPost.author,
+            subreddit: publishedPost.subreddit,
+            url: publishedPost.url,
+            permalink: publishedPost.permalink,
+            score: publishedPost.score,
+            num_comments: publishedPost.num_comments,
+            created_utc: publishedPost.created_utc,
+            thumbnail: publishedPost.thumbnail || '',
+            selftext: publishedPost.selftext || '',
+            is_video: publishedPost.is_video || false,
+            domain: publishedPost.domain || '',
+            upvote_ratio: publishedPost.upvote_ratio || 0.5,
+            over_18: publishedPost.over_18 || false,
+            attributesJson: JSON.stringify({
+              priority_score: publishedPost.priority_score,
+              sentiment: publishedPost.sentiment,
+              categories: publishedPost.categories,
+              quality_score: publishedPost.quality_score,
+              processing_status: publishedPost.processing_status,
+            }),
+            source: `${publishedPost.subreddit}/enhanced`,
+            addedAt: Date.now(),
+            batchId: `enhanced-${Date.now()}`,
+          }],
+          batchId: `enhanced-${Date.now()}`,
+        });
+        console.log(`💾 Saved live feed post: ${publishedPost.id}`);
+      } catch (error) {
+        console.error(`❌ Failed to save live feed post: ${publishedPost.id}`, error);
+      }
+      
       // Send to UI
       onNewPost({
         ...publishedPost,
@@ -183,6 +223,17 @@ export class EnhancedProcessingPipeline {
     if (rawPosts.length > 0) {
       const enrichedPosts = await enrichmentAgent.processRawPosts(rawPosts);
       this.updatePostStatuses(enrichedPosts);
+      
+      // Producer Analysis: Analyze enriched posts for context and duplicates
+      try {
+        console.log(`🏭 Requesting Producer analysis for ${enrichedPosts.length} enriched posts`);
+        for (const post of enrichedPosts) {
+          await analyzePostWithProducer(post);
+        }
+        console.log(`🏭 Producer analysis completed for ${enrichedPosts.length} posts`);
+      } catch (error) {
+        console.error('🏭 Producer: Error analyzing posts:', error);
+      }
     }
 
     // Step 2: Score enriched posts
@@ -215,6 +266,13 @@ export class EnhancedProcessingPipeline {
     try {
       const response = await fetch(`/api/reddit?subreddit=${subreddit}&limit=10&sort=${sort}`);
       if (!response.ok) {
+        // Check if circuit breaker is open (503 status)
+        if (response.status === 503) {
+          console.log(`🚫 Circuit breaker is open - pausing ingestion for Reddit API recovery`);
+          // Return empty array and let the pipeline wait longer before next attempt
+          return [];
+        }
+        
         const errorText = `Failed to fetch ${subreddit}: ${response.statusText}`;
         console.warn(`⚠️ ${errorText}`);
         

@@ -1,3 +1,6 @@
+On Reddit, the most valuable data isn’t always in the posts — it’s hidden in the comments and interaction. Here's how we're going to help capture them.
+
+
 ### social media intelligence (SOCMINT) Agent
 
 Lets develop a framework for our queue agent, now that he's carrying less weight, we can specify more capability. Lets look at:
@@ -10,3 +13,12 @@ a. I think we should key in on generating broad connections that are based on th
 b. The point of monitoring them is to passively gain an understanding of the group’s modus
 operandi and to be aware of potential new information. For instance, a stock my sky rocketing in r/WallStreetBets, and then it's trending/ rising on r/news, or r/all. We might want to ensure our host mentions this. 
 c. 
+
+
+### Reddit Specific OSINT techniqeus:
+
+Essential OSINT Techniques on Reddit
+1. rank: 5/10 - has potential: reverse image search allows you to evaluate how to review when an image has been crossposted a bunch of times. This could help you identify 'hot' posts from specific subs which may have important connections
+2. **By using the site search feature, you can query multiple subreddits at once. For example, typing site:reddit.com/r/technology OR site:reddit.com/r/science into Google will pull results from both r/technology and r/science. This method is incredibly useful for broader searches that span multiple communities.**
+3. By analyzing their last 1,000 comments and submissions, this tool can give you a detailed profile of a user’s behavior, including the kinds of posts they engage with and their overall tone. It even includes a “Kindness Meter” to evaluate the general positivity or negativity of their interactions, making it a useful tool for building a psychological profile of a target.
+4. 

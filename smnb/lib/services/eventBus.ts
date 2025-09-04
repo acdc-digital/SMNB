@@ -12,7 +12,7 @@ export type EventBusEvents = {
 };
 
 class EventBus {
-  private listeners = new Map<keyof EventBusEvents, Array<(data: any) => void>>();
+  private listeners = new Map<keyof EventBusEvents, Array<(data: unknown) => void>>();
 
   emit<T extends keyof EventBusEvents>(event: T, data: EventBusEvents[T]) {
     const eventListeners = this.listeners.get(event) || [];

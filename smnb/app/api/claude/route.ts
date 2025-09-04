@@ -148,6 +148,11 @@ Return only valid JSON, no additional text.
         }
       }
 
+      return NextResponse.json(
+        { error: 'Unexpected response format from Claude' },
+        { status: 500 }
+      );
+
     } else if (action === 'test') {
       // Simple connection test
       const response = await anthropic.messages.create({

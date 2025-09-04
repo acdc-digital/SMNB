@@ -1,5 +1,3 @@
-'use client';
-
 import { create } from 'zustand';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 
@@ -9,6 +7,11 @@ const getHostAgentStore = () => {
   return import('@/lib/stores/host/hostAgentStore').then(
     module => module.useHostAgentStore.getState()
   );
+};
+
+// Helper function to get Convex client
+const getConvexClient = () => {
+  return import('@/lib/convex').then(module => module.default);
 };
 
 export interface LiveFeedPost {
@@ -42,6 +45,25 @@ export interface LiveFeedPost {
   sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
+// Story from Host/Editor for history view
+export interface CompletedStory {
+  id: string;
+  narrative: string;
+  tone: 'breaking' | 'developing' | 'analysis' | 'opinion' | 'human-interest';
+  priority: 'high' | 'medium' | 'low';
+  timestamp: Date;
+  duration: number; // reading time in seconds
+  originalItem?: {
+    title: string;
+    author: string;
+    subreddit?: string;
+    url?: string;
+  };
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  topics?: string[];
+  summary?: string;
+}
+
 interface SimpleLiveFeedStore {
   // State
   posts: LiveFeedPost[];
@@ -50,6 +72,13 @@ interface SimpleLiveFeedStore {
   selectedSubreddits: string[];
   refreshInterval: number;
   maxPosts: number;
+  
+  // View mode for switching between live posts and story history
+  viewMode: 'live' | 'history';
+  
+  // Story history from Host/Editor
+  storyHistory: CompletedStory[];
+  maxStoryHistory: number;
   
   // Status
   isLoading: boolean;
@@ -64,6 +93,19 @@ interface SimpleLiveFeedStore {
   clearPosts: () => void;
   clearOldPosts: () => void;
   manualClearPosts: () => void; // New action for manual clearing
+  
+  // View mode actions
+  setViewMode: (mode: 'live' | 'history') => void;
+  toggleViewMode: () => void;
+  
+  // Story history actions
+  addCompletedStory: (story: CompletedStory) => void;
+  clearStoryHistory: () => void;
+  addTestStory: () => void; // For testing
+  
+  // Convex integration
+  loadStoriesFromConvex: () => Promise<void>;
+  saveStoryToConvex: (story: CompletedStory) => Promise<void>;
   
   // Controls
   setIsLive: (isLive: boolean) => void;
@@ -85,6 +127,13 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   selectedSubreddits: ['all', 'news', 'worldnews', 'technology', 'gaming', 'funny', 'todayilearned', 'askreddit'],
   refreshInterval: 30,
   maxPosts: 50,
+  
+  // View mode
+  viewMode: 'live',
+  
+  // Story history
+  storyHistory: [],
+  maxStoryHistory: 100,
   
   // Status
   isLoading: false,
@@ -247,12 +296,141 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   setError: (error) => {
     set({ error });
   },
-  
+
   updateStats: () => {
     // This can be extended later if needed to calculate stats
     const { totalPostsFetched, lastFetch } = get();
     if (lastFetch && totalPostsFetched > 0) {
       console.log(`📊 Stats: ${totalPostsFetched} posts fetched since ${new Date(lastFetch).toLocaleTimeString()}`);
+    }
+  },
+
+  // View mode actions
+  setViewMode: (viewMode) => {
+    set({ viewMode });
+    console.log(`🔄 View mode changed to: ${viewMode}`);
+  },
+
+  toggleViewMode: () => {
+    const { viewMode } = get();
+    const newMode = viewMode === 'live' ? 'history' : 'live';
+    set({ viewMode: newMode });
+    console.log(`🔄 Toggled view mode from ${viewMode} to ${newMode}`);
+  },
+
+  // Story history actions
+  addCompletedStory: (story) => {
+    set((state) => {
+      const newHistory = [story, ...state.storyHistory];
+      // Keep only the most recent stories within the limit
+      const trimmedHistory = newHistory.slice(0, state.maxStoryHistory);
+      console.log(`📚 Added completed story: "${story.narrative.substring(0, 50)}..." (${trimmedHistory.length} total)`);
+      return { storyHistory: trimmedHistory };
+    });
+    
+    // Also save to Convex asynchronously
+    get().saveStoryToConvex(story);
+  },
+
+  clearStoryHistory: () => {
+    set({ storyHistory: [] });
+    console.log('🗑️ Cleared story history');
+  },
+
+  // For testing - add a sample story
+  addTestStory: () => {
+    const testStory = {
+      id: `test-story-${Date.now()}`,
+      narrative: "Breaking news from the technology sector: A major breakthrough in artificial intelligence has been announced by researchers, potentially revolutionizing how we approach machine learning and natural language processing. The implications for the future of computing are significant.",
+      tone: 'breaking' as const,
+      priority: 'high' as const,
+      timestamp: new Date(),
+      duration: 45,
+      originalItem: {
+        title: "AI Breakthrough Changes Everything",
+        author: "tech_reporter",
+        subreddit: "technology",
+        url: "https://reddit.com/r/technology/sample"
+      },
+      sentiment: 'positive' as const,
+      topics: ['AI', 'Technology', 'Research'],
+      summary: 'Major AI breakthrough announced with significant implications for computing'
+    };
+    
+    set((state) => {
+      const newHistory = [testStory, ...state.storyHistory];
+      const trimmedHistory = newHistory.slice(0, state.maxStoryHistory);
+      console.log(`🧪 Added test story for demonstration purposes`);
+      return { storyHistory: trimmedHistory };
+    });
+  },
+
+  // Convex integration methods
+  loadStoriesFromConvex: async () => {
+    try {
+      const convexClient = await getConvexClient();
+      const { api } = await import('@/convex/_generated/api');
+      
+      // Load recent stories from Convex
+      const convexStories = await convexClient.query(api.storyHistory.getRecentStories, { 
+        hours: 24 
+      });
+      
+      // Convert Convex stories to CompletedStory format
+      const stories: CompletedStory[] = convexStories.map(story => ({
+        id: story.story_id,
+        narrative: story.narrative,
+        tone: story.tone,
+        priority: story.priority,
+        timestamp: new Date(story.completed_at),
+        duration: story.duration,
+        originalItem: story.original_item,
+        sentiment: story.sentiment,
+        topics: story.topics,
+        summary: story.summary,
+      }));
+      
+      set({ storyHistory: stories });
+      console.log(`📚 Loaded ${stories.length} stories from Convex`);
+    } catch (error) {
+      console.error('❌ Failed to load stories from Convex:', error);
+    }
+  },
+
+  saveStoryToConvex: async (story: CompletedStory) => {
+    try {
+      const convexClient = await getConvexClient();
+      const { api } = await import('@/convex/_generated/api');
+      
+      // Determine agent type from story ID prefix or context
+      let agentType: 'host' | 'editor' = 'host'; // Default to host
+      if (story.id.includes('editor') || story.id.startsWith('editor-')) {
+        agentType = 'editor';
+      } else if (story.id.includes('host') || story.id.startsWith('host-')) {
+        agentType = 'host';
+      }
+      
+      await convexClient.mutation(api.storyHistory.addStory, {
+        story_id: story.id,
+        narrative: story.narrative,
+        title: story.originalItem?.title,
+        tone: story.tone,
+        priority: story.priority,
+        agent_type: agentType,
+        duration: story.duration,
+        word_count: story.narrative.trim().split(/\s+/).length,
+        sentiment: story.sentiment,
+        topics: story.topics,
+        summary: story.summary,
+        created_at: Date.now(),
+        completed_at: story.timestamp.getTime(),
+        original_item: story.originalItem,
+      });
+      
+      console.log(`💾 Saved story to Convex: ${story.id} (${agentType})`);
+    } catch (error) {
+      console.error('❌ Failed to save story to Convex:', error);
+      // Don't throw - this shouldn't break the normal flow
     }
   },
 }));
