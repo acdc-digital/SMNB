@@ -1,3 +1,6 @@
+// POST CARD ANIMATED
+// /Users/matthewsimon/Projects/SMNB/smnb/components/livefeed/PostCardAnimated.tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';

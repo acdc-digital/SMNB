@@ -1,3 +1,6 @@
+// STUDIO CONTROLS
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/studio/controls/Controls.tsx
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';

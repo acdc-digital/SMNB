@@ -1,3 +1,6 @@
+// ACTIVITY BAR
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/activityBar/ActivityBar.tsx
+
 'use client';
 
 import React from "react";

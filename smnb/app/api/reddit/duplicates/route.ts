@@ -1,3 +1,6 @@
+// REDDIT DUPLICATES API ROUTE
+// /Users/matthewsimon/Projects/SMNB/smnb/app/api/reddit/duplicates/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { redditAPI, RedditResponse } from '@/lib/reddit';
 

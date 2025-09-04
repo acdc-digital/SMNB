@@ -1,3 +1,6 @@
+// EDITOR
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/studio/editor/Editor.tsx
+
 /**
  * Editor Component
  * 

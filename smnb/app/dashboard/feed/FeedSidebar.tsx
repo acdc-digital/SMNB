@@ -1,3 +1,6 @@
+// FEED SIDEBAR
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/feed/FeedSidebar.tsx
+
 'use client';
 
 import React from "react";

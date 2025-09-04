@@ -1,3 +1,6 @@
+// STUDIO
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/studio/Studio.tsx
+
 'use client';
 
 import React, { useState } from 'react';

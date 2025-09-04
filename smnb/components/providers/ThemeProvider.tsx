@@ -1,3 +1,6 @@
+// THEME PROVIDER
+// /Users/matthewsimon/Projects/SMNB/smnb/components/providers/ThemeProvider.tsx
+
 'use client';
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';

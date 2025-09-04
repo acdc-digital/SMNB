@@ -1,3 +1,6 @@
+// REDDIT FEED AGGREGATOR
+// /Users/matthewsimon/Projects/SMNB/smnb/components/aggregator/RedditFeed.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';

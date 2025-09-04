@@ -1,3 +1,6 @@
+// HOST
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/studio/host/Host.tsx
+
 /**
  * Host Column Component
  * 

@@ -1,3 +1,6 @@
+// PRODUCER
+// /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/studio/producer/Producer.tsx
+
 /**
  * Producer Column Component
  * 

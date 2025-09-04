@@ -1,3 +1,6 @@
+// CONVEX CLIENT PROVIDER
+// /Users/matthewsimon/Projects/SMNB/smnb/components/providers/ConvexClientProvider.tsx
+
 'use client';
 
 import { ConvexProvider } from "convex/react";

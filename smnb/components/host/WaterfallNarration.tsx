@@ -1,3 +1,6 @@
+// WATERFALL NARRATION
+// /Users/matthewsimon/Projects/SMNB/smnb/components/host/WaterfallNarration.tsx
+
 /**
  * Waterfall Narration Display Component
  * 

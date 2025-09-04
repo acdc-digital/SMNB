@@ -1,3 +1,6 @@
+// LLM SERVICE STATUS
+// /Users/matthewsimon/Projects/SMNB/smnb/components/host/LLMServiceStatus.tsx
+
 /**
  * LLM Service Status Component
  * 

@@ -1,3 +1,6 @@
+// REDDIT POSTS (LEGACY)
+// /Users/matthewsimon/Projects/SMNB/smnb/convex/redditPosts.ts
+
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 

@@ -1,3 +1,6 @@
+// THEME TOGGLE
+// /Users/matthewsimon/Projects/SMNB/smnb/components/ui/ThemeToggle.tsx
+
 'use client';
 
 import { Moon, Sun } from 'lucide-react';
