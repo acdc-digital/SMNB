@@ -156,6 +156,25 @@ Return only valid JSON, no additional text.
         { status: 500 }
       );
 
+    } else if (action === 'count-tokens') {
+      // Token counting endpoint
+      const { model, system, messages, tools, thinking } = body;
+      
+      const countRequest: any = {
+        model: model || 'claude-3-5-haiku-20241022',
+        messages: messages || []
+      };
+      
+      if (system) countRequest.system = system;
+      if (tools) countRequest.tools = tools;
+      if (thinking) countRequest.thinking = thinking;
+
+      const response = await anthropic.messages.countTokens(countRequest);
+      
+      return NextResponse.json({
+        input_tokens: response.input_tokens
+      });
+
     } else if (action === 'test') {
       // Simple connection test
       const response = await anthropic.messages.create({

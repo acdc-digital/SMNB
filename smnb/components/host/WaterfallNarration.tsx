@@ -55,24 +55,7 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
 
   return (
     <div className={`flex flex-col h-full p-6 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div 
-              className={`w-3 h-3 rounded-full transition-all duration-500 ${
-                isActive && isStreaming ? 'bg-red-500 shadow-lg shadow-red-500/50' : 
-                isActive ? 'bg-orange-500' : 'bg-gray-500'
-              }`}
-            />
-            <span className="text-sm font-semibold">
-              {isActive ? (isStreaming ? 'STREAMING' : 'ON AIR') : 'STANDBY'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Scrollable content area */}
+      {/* Scrollable content area - now takes full space */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Current streaming text */}
         {isStreaming && isActive && (
@@ -102,25 +85,12 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
             <div className="text-lg font-medium mb-2">
               {isActive ? 'Waiting for news...' : 'Host agent offline'}
             </div>
-            <div className="text-sm">
+            <div className="text-sm text-muted-foreground">
               {isActive ? 'New stories will appear here' : 'Start the host to begin broadcasting'}
             </div>
           </div>
         )}
       </div>
-
-      {/* Progress indicator - fixed at bottom */}
-      {currentNarration && isStreaming && (
-        <div className={`${styles.progressContainer} flex-shrink-0 mt-6 pt-4 border-t border-border`}>
-          <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>{streamingText.length} characters streamed</span>
-            <span>Live streaming...</span>
-          </div>
-          <div className={styles.progressBar}>
-            <div className={`${styles.progressFill} bg-blue-500 h-1 rounded-full animate-pulse`} />
-          </div>
-        </div>
-      )}
     </div>
   );
 });

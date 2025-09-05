@@ -10,6 +10,8 @@
 
 import { create } from 'zustand';
 import { ProducerAgentService, ProducerState, ContextData, DuplicateAnalysis } from '@/lib/services/producer/producerAgentService';
+import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
+import { StoryThread, StoryUpdate } from '@/lib/types/storyThread';
 
 interface ProducerStoreState extends ProducerState {
   service: ProducerAgentService | null;
@@ -21,10 +23,17 @@ interface ProducerStoreState extends ProducerState {
   getContextForPost: (postId: string) => ContextData[];
   getDuplicateAnalysis: (postId: string) => DuplicateAnalysis | null;
   sendContextToAgents: (contextData: ContextData[]) => Promise<void>;
+  sendContextToHost: (producerContext: any) => void;
+  sendContextToEditor: (producerContext: any) => void;
   // New methods for Producer integration
   getPostMetrics: (postId: string) => DuplicateAnalysis | null;
   requestAnalysis: (post: EnhancedRedditPost) => Promise<void>;
   cleanup: () => void;
+  
+  // Thread-aware methods
+  sendThreadAwareContext: (contextData: ContextData[], threadId?: string, isUpdate?: boolean) => Promise<void>;
+  getThreadContext: (threadId: string) => ContextData[];
+  analyzeThreadRelevance: (post: EnhancedRedditPost, threadId: string) => Promise<number>;
 }
 
 export const useProducerStore = create<ProducerStoreState>((set, get) => {
@@ -189,30 +198,85 @@ export const useProducerStore = create<ProducerStoreState>((set, get) => {
     // Integration method to send context to other agents
     sendContextToAgents: async (contextData: ContextData[]) => {
       try {
-        // Send to Host Agent
-        const { useHostAgentStore } = await import('@/lib/stores/host/hostAgentStore');
-        const hostStore = useHostAgentStore.getState();
-        if (hostStore.isActive) {
-          // Integrate context into host narration (method would need to be added)
-          console.log('🏭 Producer Store: Sending context to Host Agent');
-        }
-
-        // Send to Editor Agent
-        const { useEditorAgentStore } = await import('@/lib/stores/host/editorAgentStore');
-        const editorStore = useEditorAgentStore.getState();
-        if (editorStore.isActive) {
-          // Integrate context into editor content (method would need to be added)
-          console.log('🏭 Producer Store: Sending context to Editor Agent');
-        }
-
-        // Update live feed with source information
+        // Convert ContextData to ProducerContextData format for Host/Editor
         contextData.forEach(context => {
-          // Add source context to live feed posts
-          console.log(`🏭 Producer Store: Adding source context to live feed for post ${context.sourcePost.id}`);
+          const producerContext = {
+            postId: context.sourcePost.id,
+            engagementMetrics: {
+              totalScore: context.sourcePost.score,
+              comments: context.sourcePost.num_comments,
+              subredditDiversity: context.relatedPosts?.length || 0,
+            },
+            relatedDiscussions: context.relatedPosts?.map(post => ({
+              subreddit: post.subreddit,
+              title: post.title,
+              score: post.score,
+            })),
+            trendData: {
+              isBreaking: context.relevanceScore > 0.8, // Use relevanceScore as proxy for breaking news
+              isDeveloping: context.relatedPosts && context.relatedPosts.length > 3,
+              keywords: context.keywords || [],
+            },
+            receivedAt: Date.now(),
+          };
+
+          // ✅ FIXED: Actually send data to Host Agent via event emission
+          get().sendContextToHost(producerContext);
+
+          // ✅ FIXED: Actually send data to Editor Agent via event emission
+          get().sendContextToEditor(producerContext);
         });
+
+        console.log(`🏭 Producer Store: Successfully sent context for ${contextData.length} items to agents`);
 
       } catch (error) {
         console.error('🏭 Producer Store: Failed to send context to agents:', error);
+      }
+    },
+
+    // ✅ NEW: Helper method to send context to Host Agent
+    sendContextToHost: (producerContext: any) => {
+      try {
+        // Import and get Host Agent service directly
+        import('@/lib/stores/host/hostAgentStore').then(module => {
+          const { useHostAgentStore } = module;
+          const hostStore = useHostAgentStore.getState();
+
+          if (hostStore.isActive && hostStore.hostAgent) {
+            // Emit context:host event that the Host Agent Service listens for
+            hostStore.hostAgent.emit('context:host', producerContext);
+            console.log(`🏭➡️🎙️ Sent Producer context to Host Agent for post ${producerContext.postId}`);
+          } else {
+            console.log('🏭➡️🎙️ Host Agent not active, skipping context send');
+          }
+        }).catch(error => {
+          console.error('🏭➡️🎙️ Failed to send context to Host Agent:', error);
+        });
+      } catch (error) {
+        console.error('🏭➡️🎙️ Error sending context to Host Agent:', error);
+      }
+    },
+
+    // ✅ NEW: Helper method to send context to Editor Agent
+    sendContextToEditor: (producerContext: any) => {
+      try {
+        // Import and get Editor Agent service directly
+        import('@/lib/stores/host/editorAgentStore').then(module => {
+          const { useEditorAgentStore } = module;
+          const editorStore = useEditorAgentStore.getState();
+
+          if (editorStore.isActive && editorStore.editorAgent) {
+            // Emit context:editor event that the Editor Agent Service listens for
+            editorStore.editorAgent.emit('context:editor', producerContext);
+            console.log(`🏭➡️✍️ Sent Producer context to Editor Agent for post ${producerContext.postId}`);
+          } else {
+            console.log('🏭➡️✍️ Editor Agent not active, skipping context send');
+          }
+        }).catch(error => {
+          console.error('🏭➡️✍️ Failed to send context to Editor Agent:', error);
+        });
+      } catch (error) {
+        console.error('🏭➡️✍️ Error sending context to Editor Agent:', error);
       }
     },
 
@@ -239,11 +303,120 @@ export const useProducerStore = create<ProducerStoreState>((set, get) => {
         }
       });
       console.log('🏭 Producer Store: Cleaned up');
+    },
+
+    // Thread-aware context method
+    sendThreadAwareContext: async (contextData: ContextData[], threadId?: string, isUpdate?: boolean) => {
+      try {
+        // Get story thread store for thread information
+        const storyThreadStore = await import('@/lib/stores/livefeed/storyThreadStore').then(
+          module => module.useStoryThreadStore.getState()
+        );
+
+        // Convert ContextData to thread-aware ProducerContextData format
+        contextData.forEach(context => {
+          let threadInfo = null;
+          
+          // Get thread information if threadId is provided
+          if (threadId) {
+            const thread = storyThreadStore.getThreadById(threadId);
+            if (thread) {
+              threadInfo = {
+                threadId: thread.id,
+                threadTopic: thread.topic,
+                threadSignificance: thread.significanceScore,
+                updateCount: thread.updateCount,
+                isUpdate: isUpdate || false,
+                relatedThreads: thread.relatedThreads || []
+              };
+            }
+          }
+
+          const producerContext = {
+            postId: context.sourcePost.id,
+            engagementMetrics: {
+              totalScore: context.sourcePost.score,
+              comments: context.sourcePost.num_comments,
+              subredditDiversity: context.relatedPosts?.length || 0,
+            },
+            relatedDiscussions: context.relatedPosts?.map(post => ({
+              subreddit: post.subreddit,
+              title: post.title,
+              score: post.score,
+            })),
+            trendData: {
+              isBreaking: context.relevanceScore > 0.8,
+              isDeveloping: context.relatedPosts && context.relatedPosts.length > 3,
+              keywords: context.keywords || [],
+            },
+            // Thread-aware context
+            threadContext: threadInfo,
+            receivedAt: Date.now(),
+          };
+
+          // Send enhanced context to Host and Editor agents
+          get().sendContextToHost(producerContext);
+          get().sendContextToEditor(producerContext);
+        });
+
+        console.log(`🧵 Producer Store: Successfully sent thread-aware context for ${contextData.length} items (Thread: ${threadId}, Update: ${isUpdate})`);
+
+      } catch (error) {
+        console.error('🧵 Producer Store: Failed to send thread-aware context:', error);
+      }
+    },
+
+    getThreadContext: (threadId: string): ContextData[] => {
+      const { contextData } = get();
+      // Filter context data for posts that might be related to the thread
+      return contextData.filter(context => {
+        // This could be enhanced with more sophisticated thread relevance checking
+        return context.keywords?.some(keyword =>
+          threadId.toLowerCase().includes(keyword.toLowerCase())
+        ) || false;
+      });
+    },
+
+    analyzeThreadRelevance: async (post: EnhancedRedditPost, threadId: string): Promise<number> => {
+      try {
+        // Get story thread store for thread information
+        const storyThreadStore = await import('@/lib/stores/livefeed/storyThreadStore').then(
+          module => module.useStoryThreadStore.getState()
+        );
+
+        const thread = storyThreadStore.getThreadById(threadId);
+        if (!thread) {
+          return 0;
+        }
+
+        // Simple relevance calculation based on keyword and entity overlap
+        const postText = `${post.title} ${post.selftext || ''}`.toLowerCase();
+        
+        // Check keyword overlap
+        const keywordMatches = thread.keywords.filter(keyword =>
+          postText.includes(keyword.toLowerCase())
+        ).length;
+        const keywordRelevance = keywordMatches / Math.max(thread.keywords.length, 1);
+
+        // Check entity overlap
+        const entityMatches = thread.entities.filter(entity =>
+          postText.includes(entity.toLowerCase())
+        ).length;
+        const entityRelevance = entityMatches / Math.max(thread.entities.length, 1);
+
+        // Combined relevance score
+        const relevanceScore = (keywordRelevance * 0.6) + (entityRelevance * 0.4);
+        
+        console.log(`🧵 Producer Store: Analyzed thread relevance for post ${post.id} to thread ${threadId}: ${relevanceScore.toFixed(2)}`);
+        return relevanceScore;
+
+      } catch (error) {
+        console.error('🧵 Producer Store: Failed to analyze thread relevance:', error);
+        return 0;
+      }
     }
   };
 });
-
-import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 
 // Integration helper to analyze live feed posts
 export const analyzePostWithProducer = async (post: EnhancedRedditPost) => {

@@ -3,12 +3,20 @@
 
 import { create } from 'zustand';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
+import { StoryThread, StoryUpdate } from '@/lib/types/storyThread';
 
 // Helper function to get host agent store without circular dependency
 const getHostAgentStore = () => {
   // Lazy import to avoid circular dependency
   return import('@/lib/stores/host/hostAgentStore').then(
     module => module.useHostAgentStore.getState()
+  );
+};
+
+// Helper function to get story thread store
+const getStoryThreadStore = () => {
+  return import('@/lib/stores/livefeed/storyThreadStore').then(
+    module => module.useStoryThreadStore.getState()
   );
 };
 
@@ -46,6 +54,18 @@ export interface LiveFeedPost {
   quality_score?: number;
   categories?: string[];
   sentiment?: 'positive' | 'neutral' | 'negative';
+  
+  // Story thread fields
+  threadId?: string; // ID of the story thread this post belongs to
+  isThreadUpdate?: boolean; // Whether this post is an update to existing thread
+  updateType?: StoryUpdate['updateType']; // Type of update if it's an update
+  threadTopic?: string; // Topic of the thread for display
+  updateBadge?: {
+    isVisible: boolean;
+    text: string; // e.g., "UPDATED", "BREAKING UPDATE", "FOLLOW-UP"
+    type: 'update' | 'breaking' | 'follow_up' | 'correction';
+    timestamp: number;
+  };
 }
 
 // Story from Host/Editor for history view
@@ -65,6 +85,13 @@ export interface CompletedStory {
   sentiment?: 'positive' | 'negative' | 'neutral';
   topics?: string[];
   summary?: string;
+  
+  // Story thread fields
+  threadId?: string; // ID of the story thread this story belongs to
+  isThreadUpdate?: boolean; // Whether this story is an update to existing thread
+  updateType?: StoryUpdate['updateType']; // Type of update if it's an update
+  threadTopic?: string; // Topic of the thread for display
+  updateCount?: number; // Number of updates in the thread
 }
 
 interface SimpleLiveFeedStore {
@@ -83,6 +110,10 @@ interface SimpleLiveFeedStore {
   storyHistory: CompletedStory[];
   maxStoryHistory: number;
   
+  // Thread-aware state
+  activeThreads: string[]; // List of active thread IDs being displayed
+  threadUpdateCooldown: Map<string, number>; // Cooldown periods for thread updates
+  
   // Status
   isLoading: boolean;
   error: string | null;
@@ -96,6 +127,13 @@ interface SimpleLiveFeedStore {
   clearPosts: () => void;
   clearOldPosts: () => void;
   manualClearPosts: () => void; // New action for manual clearing
+  
+  // Thread-aware actions
+  processPostWithThreads: (post: EnhancedRedditPost) => Promise<LiveFeedPost>;
+  addThreadUpdate: (post: LiveFeedPost, threadId: string, updateType: StoryUpdate['updateType']) => void;
+  markThreadUpdate: (postId: string, threadInfo: { threadId: string; updateType: StoryUpdate['updateType']; threadTopic: string }) => void;
+  hideUpdateBadge: (postId: string) => void;
+  getThreadPosts: (threadId: string) => LiveFeedPost[];
   
   // View mode actions
   setViewMode: (mode: 'live' | 'history') => void;
@@ -122,6 +160,27 @@ interface SimpleLiveFeedStore {
   updateStats: () => void;
 }
 
+// Helper functions for badge formatting
+const formatUpdateBadgeText = (updateType: StoryUpdate['updateType']): string => {
+  switch (updateType) {
+    case 'new_development': return 'UPDATED';
+    case 'follow_up': return 'FOLLOW-UP';
+    case 'clarification': return 'CLARIFIED';
+    case 'correction': return 'CORRECTED';
+    default: return 'UPDATED';
+  }
+};
+
+const mapUpdateTypeToBadgeType = (updateType: StoryUpdate['updateType']): 'update' | 'breaking' | 'follow_up' | 'correction' => {
+  switch (updateType) {
+    case 'new_development': return 'breaking';
+    case 'follow_up': return 'follow_up';
+    case 'clarification': return 'update';
+    case 'correction': return 'correction';
+    default: return 'update';
+  }
+};
+
 export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => ({
   // Initial state
   posts: [],
@@ -137,6 +196,10 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   // Story history
   storyHistory: [],
   maxStoryHistory: 100,
+  
+  // Thread-aware state
+  activeThreads: [],
+  threadUpdateCooldown: new Map(),
   
   // Status
   isLoading: false,
@@ -231,7 +294,198 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       console.log('🎬 Animation flag removed for new posts');
     }, 2000); // Increased from 1000ms to 2000ms
   },
-  
+
+  // Thread-aware processing method
+  processPostWithThreads: async (post: EnhancedRedditPost): Promise<LiveFeedPost> => {
+    try {
+      // Process through story thread system
+      const threadStore = await getStoryThreadStore();
+      const threadResult = await threadStore.processPostForThreads(post);
+      
+      // Convert to LiveFeedPost
+      const liveFeedPost: LiveFeedPost = {
+        id: post.id,
+        title: post.title,
+        author: post.author,
+        subreddit: post.subreddit,
+        url: post.url,
+        permalink: post.permalink,
+        score: post.score,
+        num_comments: post.num_comments,
+        created_utc: post.created_utc,
+        thumbnail: post.thumbnail,
+        selftext: post.selftext,
+        is_video: post.is_video,
+        domain: post.domain,
+        upvote_ratio: post.upvote_ratio,
+        over_18: post.over_18,
+        source: 'reddit',
+        addedAt: Date.now(),
+        batchId: 0,
+        priority_score: post.priority_score,
+        quality_score: post.quality_score,
+        categories: post.categories,
+        sentiment: post.sentiment,
+        // Thread information
+        threadId: threadResult.threadId,
+        isThreadUpdate: threadResult.isUpdate,
+        updateType: threadResult.updateType
+      };
+
+      // Add thread topic from thread store
+      if (threadResult.threadId) {
+        const thread = threadStore.getThreadById(threadResult.threadId);
+        if (thread) {
+          liveFeedPost.threadTopic = thread.topic;
+        }
+      }
+
+      // Add update badge if this is an update
+      if (threadResult.isUpdate && threadResult.updateType) {
+        liveFeedPost.updateBadge = {
+          isVisible: true,
+          text: formatUpdateBadgeText(threadResult.updateType),
+          type: mapUpdateTypeToBadgeType(threadResult.updateType),
+          timestamp: Date.now()
+        };
+
+        // Hide badge after 30 seconds
+        setTimeout(() => {
+          get().hideUpdateBadge(post.id);
+        }, 30000);
+      }
+
+      console.log(`🧵 Processed post with threads: ${post.title.substring(0, 30)}... (Thread: ${threadResult.threadId}, Update: ${threadResult.isUpdate})`);
+      return liveFeedPost;
+      
+    } catch (error) {
+      console.error('❌ Failed to process post with threads:', error);
+      // Fallback to regular processing
+      return {
+        id: post.id,
+        title: post.title,
+        author: post.author,
+        subreddit: post.subreddit,
+        url: post.url,
+        permalink: post.permalink,
+        score: post.score,
+        num_comments: post.num_comments,
+        created_utc: post.created_utc,
+        thumbnail: post.thumbnail,
+        selftext: post.selftext,
+        is_video: post.is_video,
+        domain: post.domain,
+        upvote_ratio: post.upvote_ratio,
+        over_18: post.over_18,
+        source: 'reddit',
+        addedAt: Date.now(),
+        batchId: 0,
+        priority_score: post.priority_score,
+        quality_score: post.quality_score,
+        categories: post.categories,
+        sentiment: post.sentiment
+      };
+    }
+  },
+
+  addThreadUpdate: (post: LiveFeedPost, threadId: string, updateType: StoryUpdate['updateType']) => {
+    set((state) => {
+      // Check cooldown for this thread
+      const cooldownKey = threadId;
+      const lastUpdate = state.threadUpdateCooldown.get(cooldownKey) || 0;
+      const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+      
+      if (Date.now() - lastUpdate < COOLDOWN_MS) {
+        console.log(`⏳ Thread update cooldown active for ${threadId}, skipping`);
+        return state;
+      }
+
+      // Update the post with thread information
+      const updatedPost: LiveFeedPost = {
+        ...post,
+        threadId,
+        isThreadUpdate: true,
+        updateType,
+        updateBadge: {
+          isVisible: true,
+          text: formatUpdateBadgeText(updateType),
+          type: mapUpdateTypeToBadgeType(updateType),
+          timestamp: Date.now()
+        }
+      };
+
+      // Add to front of list (newest first)
+      const newPosts = [updatedPost, ...state.posts].slice(0, state.maxPosts);
+      
+      // Update cooldown
+      const newCooldownMap = new Map(state.threadUpdateCooldown);
+      newCooldownMap.set(cooldownKey, Date.now());
+
+      // Track active thread
+      const newActiveThreads = state.activeThreads.includes(threadId)
+        ? state.activeThreads
+        : [...state.activeThreads, threadId];
+
+      console.log(`🔄 Added thread update: ${post.title.substring(0, 30)}... (Thread: ${threadId})`);
+      
+      return {
+        posts: newPosts,
+        activeThreads: newActiveThreads,
+        threadUpdateCooldown: newCooldownMap,
+        totalPostsFetched: state.totalPostsFetched + 1
+      };
+    });
+
+    // Hide update badge after 30 seconds
+    setTimeout(() => {
+      get().hideUpdateBadge(post.id);
+    }, 30000);
+  },
+
+  markThreadUpdate: (postId: string, threadInfo: { threadId: string; updateType: StoryUpdate['updateType']; threadTopic: string }) => {
+    set((state) => ({
+      posts: state.posts.map(post =>
+        post.id === postId
+          ? {
+              ...post,
+              threadId: threadInfo.threadId,
+              isThreadUpdate: true,
+              updateType: threadInfo.updateType,
+              threadTopic: threadInfo.threadTopic,
+              updateBadge: {
+                isVisible: true,
+                text: formatUpdateBadgeText(threadInfo.updateType),
+                type: mapUpdateTypeToBadgeType(threadInfo.updateType),
+                timestamp: Date.now()
+              }
+            }
+          : post
+      )
+    }));
+    
+    console.log(`🏷️ Marked post as thread update: ${postId} (Thread: ${threadInfo.threadId})`);
+    
+    // Hide badge after 30 seconds
+    setTimeout(() => {
+      get().hideUpdateBadge(postId);
+    }, 30000);
+  },
+
+  hideUpdateBadge: (postId: string) => {
+    set((state) => ({
+      posts: state.posts.map(post =>
+        post.id === postId && post.updateBadge
+          ? { ...post, updateBadge: { ...post.updateBadge, isVisible: false } }
+          : post
+      )
+    }));
+  },
+
+  getThreadPosts: (threadId: string) => {
+    const { posts } = get();
+    return posts.filter(post => post.threadId === threadId);
+  },
+
   clearOldPosts: () => {
     set((state) => {
       // Keep only posts from the last 10 minutes to allow for fresh content

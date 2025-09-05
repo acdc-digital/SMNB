@@ -6,6 +6,7 @@
 import React from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { TokenCounter } from "@/components/ui/TokenCounter";
 import ActivityBar from "./activityBar/ActivityBar";
 
 interface DashboardLayoutProps {
@@ -41,6 +42,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex items-center gap-4 text-foreground/60">
           <span>Status: Ready</span>
           <span className="hidden sm:inline">v0.1.0</span>
+          <TokenCounter className="hidden md:flex" />
         </div>
         <div className="flex items-center gap-3 text-foreground/50">
           <a href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</a>

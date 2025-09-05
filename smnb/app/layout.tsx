@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { TokenCountingProvider } from "@/components/providers/TokenCountingProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +40,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ConvexClientProvider>
-            {children}
+            <TokenCountingProvider>
+              {children}
+            </TokenCountingProvider>
           </ConvexClientProvider>
         </ThemeProvider>
       </body>

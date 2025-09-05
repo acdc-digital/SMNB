@@ -154,13 +154,24 @@ export class MockLLMService {
       standard: [
         "📰 News update: {content}. This story is generating discussion with {engagement} interactions across social platforms.",
         "🗞️ Latest report: {content}. Early audience response indicates moderate interest in this developing situation.",
-        "📢 Current story: {content}. Social media metrics show steady engagement as users share their perspectives."
+        "📢 Current story: {content}. Social media metrics show steady engagement as users share their perspectives.",
+        "🔄 Story continues: {content}. Following our earlier coverage, this development adds new context to the ongoing situation.",
+        "📊 Update #{updateCount}: {content}. This marks the latest development in a story we've been tracking closely.",
+        "⏰ Latest development: {content}. Breaking just moments ago, this update provides fresh perspective on the evolving story."
+      ],
+      thread_update: [
+        "🧵 Thread update: {content}. This continues our ongoing coverage of {threadTopic} with {engagement} community interactions.",
+        "📈 Story developing: {content}. Update #{updateCount} in our {threadTopic} coverage shows {engagement} engagement levels.",
+        "🔄 Continuing coverage: {content}. Latest in the {threadTopic} story thread with {engagement} social media activity.",
+        "📰 Follow-up report: {content}. Our {threadTopic} coverage continues with this significant development."
       ]
     } as const;
 
     let category: keyof typeof templates = 'standard';
     if (context.isBreaking) {
       category = 'breaking';
+    } else if (prompt.toLowerCase().includes('thread') || prompt.toLowerCase().includes('update') || prompt.toLowerCase().includes('continuing')) {
+      category = 'thread_update';
     } else if (prompt.toLowerCase().includes('develop')) {
       category = 'developing';
     } else if (prompt.toLowerCase().includes('analysis')) {
@@ -176,9 +187,18 @@ export class MockLLMService {
     
     const engagement = this.formatEngagement(context.engagement);
     
+    // Extract thread context if available
+    const threadTopicMatch = prompt.match(/Thread topic: (.+?)(?:\n|$)/i);
+    const threadTopic = threadTopicMatch ? threadTopicMatch[1] : "ongoing story";
+    
+    const updateCountMatch = prompt.match(/Update (\d+)/i);
+    const updateCount = updateCountMatch ? updateCountMatch[1] : Math.floor(Math.random() * 5) + 1;
+    
     return template
       .replace('{content}', content)
-      .replace('{engagement}', engagement);
+      .replace('{engagement}', engagement)
+      .replace('{threadTopic}', threadTopic)
+      .replace('{updateCount}', updateCount.toString());
   }
 
   private extractPlatform(prompt: string): string {

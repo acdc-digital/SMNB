@@ -201,21 +201,21 @@ export const useEditorAgentStore = create<EditorAgentStoreState>((set, get) => (
           console.log(`📋 EDITOR: Added completed story to live feed history: "${completedContent.content.substring(0, 50)}..."`);
         });
         
+        // Immediately clear streaming state and set completed content
         set({ 
           currentContent: completedContent,
           isStreaming: false,
-          streamingText: fullText,
+          streamingText: '',
+          streamingContentId: null,
         });
         
-        // Clear streaming state after a brief moment
+        // Clear current content after displaying for a moment
         setTimeout(() => {
           console.log(`📝 Clearing current content for: ${contentId}`);
           set({ 
             currentContent: null,
-            streamingText: '',
-            streamingContentId: null,
           });
-        }, 2000);
+        }, 3000); // Show completed content for 3 seconds
       } else {
         console.warn(`📝 Content completion mismatch: expected ${state.currentContent?.id}, got ${contentId}`);
       }

@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
-import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore';
+// import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore'; // Commented out - editor functionality disabled
 import { StudioMode } from '../Studio';
 import { 
   ChevronDown, 
@@ -69,6 +69,8 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     processLiveFeedPost
   } = useHostAgentStore();
 
+  // Editor agent store - commented out
+  /*
   const {
     isActive: isEditorActive,
     start: startEditorAgent,
@@ -76,6 +78,14 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     processPost: processEditorPost,
     stats: editorStats
   } = useEditorAgentStore();
+  */
+
+  // Mock editor values for compatibility
+  const isEditorActive = false;
+  const startEditorAgent = () => {};
+  const stopEditorAgent = () => {};
+  const processEditorPost = (_post: unknown) => {}; // Accept parameter but do nothing
+  const editorStats = { totalWords: 0, sessionsCompleted: 0 };
 
   const allDefaultSubreddits = ['all', 'news', 'worldnews', 'technology', 'gaming', 'funny', 'todayilearned', 'askreddit'];
 
@@ -175,10 +185,17 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     const agentLabel = mode.toUpperCase();
     console.log(`🔄 ${agentLabel} FEED: Found ${newPosts.length} new posts to process`);
     
-    // Process new posts one by one with delays
-    newPosts.slice(0, 5).forEach((post, index) => { // Process up to 5 new posts
+    // Process new posts one by one with delays - limit to prevent overflow
+    const postsToProcess = newPosts.slice(0, 3); // Process up to 3 new posts at a time
+    postsToProcess.forEach((post, index) => {
       setTimeout(() => {
-        console.log(`📤 ${agentLabel} FEED: Sending post ${index + 1}/${Math.min(newPosts.length, 5)} to ${mode}: ${post.title.substring(0, 50)}...`);
+        // Double-check the post wasn't processed by another effect
+        if (processedPostIds.has(post.id)) {
+          console.log(`⏭️ ${agentLabel} FEED: Post ${post.id} already processed, skipping`);
+          return;
+        }
+        
+        console.log(`📤 ${agentLabel} FEED: Sending post ${index + 1}/${postsToProcess.length} to ${mode}: ${post.title.substring(0, 50)}...`);
         
         if (mode === 'host') {
           const enhancedPost = convertLiveFeedPostToEnhanced(post);
@@ -187,47 +204,16 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
           processEditorPost(post as unknown as Record<string, unknown>);
         }
         
-        // Mark this post as processed
-        setProcessedPostIds(prev => new Set(prev).add(post.id));
+        // Mark this post as processed immediately
+        setProcessedPostIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(post.id);
+          return newSet;
+        });
         console.log(`✅ ${agentLabel} FEED: Marked post as processed: ${post.id}`);
       }, index * 3000); // 3-second delay between posts for better pacing
     });
 
-  }, [posts, isLive, mode, isHostActive, isEditorActive, processLiveFeedPost, processEditorPost, processedPostIds]);
-
-  // Additional effect to ensure continuous feeding - check for new posts every 10 seconds
-  useEffect(() => {
-    const isAgentActive = mode === 'host' ? isHostActive : isEditorActive;
-    
-    if (!isLive || !isAgentActive) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const newPosts = posts.filter(post => !processedPostIds.has(post.id));
-      
-      if (newPosts.length > 0) {
-        const agentLabel = mode.toUpperCase();
-        console.log(`⏰ ${agentLabel} CONTINUOUS: Found ${newPosts.length} unprocessed posts, sending next batch...`);
-        
-        // Send next batch of posts
-        newPosts.slice(0, 3).forEach((post, index) => {
-          setTimeout(() => {
-            if (mode === 'host') {
-              const enhancedPost = convertLiveFeedPostToEnhanced(post);
-              processLiveFeedPost(enhancedPost);
-            } else if (mode === 'editor') {
-              processEditorPost(post as unknown as Record<string, unknown>);
-            }
-            
-            setProcessedPostIds(prev => new Set(prev).add(post.id));
-            console.log(`⏰ ${agentLabel} CONTINUOUS: Processed ${post.id}`);
-          }, index * 2000); // 2-second delay between posts
-        });
-      }
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
   }, [posts, isLive, mode, isHostActive, isEditorActive, processLiveFeedPost, processEditorPost, processedPostIds]);
 
   // Reset processed posts when agent state changes
@@ -329,10 +315,12 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                       </div>
                     )}
 
-                    {/* Mode Controls Section */}
+                    {/* Mode Controls Section - Editor mode disabled */}
                     {section.id === 'mode-controls' && (
                       <div className="space-y-3">
                         <div className="text-muted-foreground text-xs uppercase">Studio Mode</div>
+                        {/* Mode toggle disabled - always host mode */}
+                        {/*
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={() => onModeChange('host')}
@@ -357,8 +345,13 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                             Editor
                           </button>
                         </div>
+                        */}
+                        <div className="px-3 py-2 text-xs rounded bg-blue-500 text-white border-2 border-blue-600 flex items-center gap-2">
+                          <Mic className="w-3 h-3" />
+                          Host Mode (Active)
+                        </div>
                         <div className="text-xs text-muted-foreground">
-                          {mode === 'host' ? 'Broadcasting live news narration' : 'Generating streaming editor content'}
+                          Broadcasting live news narration
                         </div>
                       </div>
                     )}
@@ -396,7 +389,7 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                       </div>
                     )}
 
-                    {/* Editor Controls Section */}
+                    {/* Editor Controls Section - Commented out
                     {section.id === 'agent-controls' && mode === 'editor' && (
                       <div className="space-y-3">
                         <div className="text-muted-foreground text-xs uppercase">Editor Status</div>
@@ -428,6 +421,7 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                         </button>
                       </div>
                     )}
+                    */}
 
                     {/* Keep existing host-controls section for backward compatibility */}
                     {section.id === 'host-controls' && (

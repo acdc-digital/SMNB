@@ -16,6 +16,7 @@ import type {
 import type * as redditFeed from "../redditFeed.js";
 import type * as redditPosts from "../redditPosts.js";
 import type * as storyHistory from "../storyHistory.js";
+import type * as tokenUsage from "../tokenUsage.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   redditFeed: typeof redditFeed;
   redditPosts: typeof redditPosts;
   storyHistory: typeof storyHistory;
+  tokenUsage: typeof tokenUsage;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

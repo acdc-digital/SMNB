@@ -112,42 +112,18 @@ export default function Editor({ className = '' }: EditorProps) {
     }
   }, [editor]);
 
-  // Handle streaming content updates
+  // Handle content updates - streaming and completed
   useEffect(() => {
-    if (!editor || !isStreaming || !streamingText) return;
+    if (!editor) return;
 
-    // Replace entire editor content with streaming text
-    const content = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: streamingText,
-            }
-          ]
-        }
-      ]
-    };
+    // If streaming, only update the streaming display (don't update editor content)
+    if (isStreaming && streamingText) {
+      // The streaming content will be shown in the blue background section
+      // Don't update the editor content during streaming
+      return;
+    }
 
-    // Update editor content without triggering sync
-    editor.commands.setContent(content, false);
-    
-    // Scroll to bottom for waterfall effect
-    setTimeout(() => {
-      if (editor.view.dom.parentElement) {
-        editor.view.dom.parentElement.scrollTop = editor.view.dom.parentElement.scrollHeight;
-      }
-    }, 10);
-  }, [editor, isStreaming, streamingText]);
-
-  // Handle completed content updates
-  useEffect(() => {
-    if (!editor || isStreaming) return;
-
-    // If we have current content that's complete, show it in the editor
+    // If we have completed content, show it in the editor
     if (currentContent && currentContent.isComplete && currentContent.content) {
       console.log(`📝 Displaying completed content in editor: ${currentContent.id}`);
       
@@ -167,19 +143,23 @@ export default function Editor({ className = '' }: EditorProps) {
         ]
       };
 
-      editor.commands.setContent(content, false);
-      
-      // Scroll to top for completed content
+      // Clear editor first, then set new content
+      editor.commands.clearContent();
       setTimeout(() => {
-        if (editor.view.dom.parentElement) {
-          editor.view.dom.parentElement.scrollTop = 0;
-        }
+        editor.commands.setContent(content, false);
+        
+        // Scroll to top for completed content
+        setTimeout(() => {
+          if (editor.view.dom.parentElement) {
+            editor.view.dom.parentElement.scrollTop = 0;
+          }
+        }, 10);
       }, 10);
-    } else if (!currentContent) {
-      // Show welcome message if no current content
+    } else if (!currentContent && !isStreaming) {
+      // Show welcome message if no current content and not streaming
       handleInitializeEditor();
     }
-  }, [editor, isStreaming, currentContent, handleInitializeEditor]);
+  }, [editor, isStreaming, currentContent, streamingText, handleInitializeEditor]);
 
   // Initialize editor content on mount
   useEffect(() => {

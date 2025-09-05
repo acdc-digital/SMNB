@@ -5,6 +5,42 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Token usage tracking
+  token_usage: defineTable({
+    request_id: v.string(), // Unique identifier for the request
+    timestamp: v.number(), // Unix timestamp
+    model: v.string(), // e.g. "claude-3-5-haiku-20241022"
+    action: v.union(
+      v.literal("generate"),
+      v.literal("stream"),
+      v.literal("analyze"),
+      v.literal("test")
+    ),
+    input_tokens: v.number(),
+    output_tokens: v.number(),
+    total_tokens: v.number(),
+    estimated_cost: v.number(), // Cost in USD
+    request_type: v.union(
+      v.literal("host"),
+      v.literal("producer"),
+      v.literal("editor")
+    ),
+    duration: v.optional(v.number()), // Request duration in milliseconds
+    success: v.boolean(),
+    error_message: v.optional(v.string()),
+    // Additional metadata
+    session_id: v.optional(v.string()), // Link to host_sessions if applicable
+    source_post_id: v.optional(v.string()), // Link to originating post if applicable
+    metadata: v.optional(v.string()), // JSON blob for additional data
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_model", ["model"])
+    .index("by_action", ["action"])
+    .index("by_request_type", ["request_type"])
+    .index("by_success", ["success"])
+    .index("by_session_id", ["session_id"])
+    .index("by_source_post_id", ["source_post_id"]),
+
   live_feed_posts: defineTable({
     id: v.string(),
     title: v.string(),

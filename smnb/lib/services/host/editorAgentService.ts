@@ -58,6 +58,7 @@ export interface EditorState {
   contentQueue: EnhancedRedditPost[];
   processedPosts: Set<string>;
   context: EnhancedRedditPost[];
+  producerContext?: any[]; // Producer context data
   stats: {
     postsProcessed: number;
     totalWords: number;
@@ -97,6 +98,7 @@ export class EditorAgentService extends EventEmitter {
       contentQueue: [],
       processedPosts: new Set(),
       context: [],
+      producerContext: [], // Initialize Producer context array
       stats: {
         postsProcessed: 0,
         totalWords: 0,
@@ -266,6 +268,35 @@ export class EditorAgentService extends EventEmitter {
     this.on('error', (error: Error) => {
       console.error('🚨 Editor agent error:', error);
     });
+
+    // Listen for Producer context events
+    this.on('context:editor', (context: any) => {
+      console.log('🏭➡️✍️ Received Producer context:', context);
+      this.integrateProducerContext(context);
+    });
+  }
+
+  // New method to integrate Producer context into Editor content
+  private integrateProducerContext(context: any): void {
+    try {
+      // Store context for use in next content generation
+      if (!this.state.producerContext) {
+        this.state.producerContext = [];
+      }
+      this.state.producerContext.push({
+        ...context,
+        receivedAt: Date.now()
+      });
+
+      // Keep only recent context (last 10 items)
+      if (this.state.producerContext.length > 10) {
+        this.state.producerContext.shift();
+      }
+
+      console.log(`🏭➡️✍️ Integrated Producer context for post ${context.postId || 'unknown'}`);
+    } catch (error) {
+      console.error('🏭➡️✍️ Failed to integrate Producer context:', error);
+    }
   }
 
   private updateContext(post: EnhancedRedditPost): void {

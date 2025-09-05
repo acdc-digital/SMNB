@@ -8,7 +8,22 @@
  * This keeps API keys secure on the server while providing Claude functionality
  */
 
-import { LLMAnalysis } from '@/lib/types/hostAgent';
+import { HostNarration } from '@/lib/types/hostAgent';
+import { tokenCountingService, TokenUsageMetrics } from '../tokenCountingService';
+
+export interface LLMOptions {
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+}
+
+export interface LLMAnalysis {
+  sentiment: 'positive' | 'negative' | 'neutral';
+  topics: string[];
+  summary: string;
+  urgency: 'low' | 'medium' | 'high';
+  relevance: number;
+}
 
 export class ClaudeLLMService {
   private isEnabled: boolean;
@@ -20,17 +35,22 @@ export class ClaudeLLMService {
     console.log('✅ Claude LLM service initialized (client-side)');
   }
 
-  async generate(
-    prompt: string,
-    options?: {
-      temperature?: number;
-      maxTokens?: number;
-      systemPrompt?: string;
-    }
-  ): Promise<string> {
+  async generate(prompt: string, options: LLMOptions = {}): Promise<string> {
     try {
       console.log('🤖 Generating narration with Claude...');
+      const startTime = Date.now();
+      const requestId = `generate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const model = 'claude-3-5-haiku-20241022';
       
+      const systemPrompt = options.systemPrompt || this.getDefaultSystemPrompt();
+      
+      // Count input tokens
+      const inputTokens = await tokenCountingService.countInputTokens({
+        model,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }]
+      });
+
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: {
@@ -39,27 +59,58 @@ export class ClaudeLLMService {
         body: JSON.stringify({
           action: 'generate',
           prompt,
-          options
+          options: {
+            systemPrompt,
+            temperature: options.temperature || 0.7,
+            maxTokens: options.maxTokens || 200,
+          }
         })
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json();
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      const duration = Date.now() - startTime;
       
-      if (data.success && data.text) {
-        console.log('✅ Generated narration successfully');
+      if (data.success) {
+        // Count output tokens and record usage
+        const outputTokens = tokenCountingService.estimateOutputTokens(data.text);
+        
+        tokenCountingService.recordUsage({
+          requestId,
+          model,
+          action: 'generate',
+          inputTokens,
+          outputTokens,
+          requestType: 'host',
+          duration,
+          success: true
+        });
+        
+        console.log(`✅ Generated narration: ${data.text.substring(0, 50)}... (${inputTokens}→${outputTokens} tokens, ${duration}ms)`);
         return data.text;
       } else {
-        throw new Error('Invalid response format');
+        throw new Error(data.error || 'Generation failed');
       }
-
     } catch (error) {
       console.error('❌ Claude API error:', error);
-      return this.getFallbackNarration(prompt);
+      
+      // Record failed request
+      tokenCountingService.recordUsage({
+        requestId: `failed-${Date.now()}`,
+        model: 'claude-3-5-haiku-20241022',
+        action: 'generate',
+        inputTokens: 0,
+        outputTokens: 0,
+        requestType: 'host',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
     }
   }
 
@@ -76,6 +127,18 @@ export class ClaudeLLMService {
   ): Promise<string> {
     try {
       console.log('🤖 Starting streaming narration with Claude...');
+      const startTime = Date.now();
+      const requestId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const model = 'claude-3-5-haiku-20241022';
+      
+      const systemPrompt = options?.systemPrompt || this.getDefaultSystemPrompt();
+      
+      // Count input tokens
+      const inputTokens = await tokenCountingService.countInputTokens({
+        model,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }]
+      });
       
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
@@ -85,7 +148,10 @@ export class ClaudeLLMService {
         body: JSON.stringify({
           action: 'stream',
           prompt,
-          options
+          options: {
+            ...options,
+            systemPrompt
+          }
         })
       });
 
@@ -118,6 +184,23 @@ export class ClaudeLLMService {
                 onChunk?.(data.text);
               } else if (data.type === 'complete') {
                 console.log('✅ Streaming narration completed');
+                
+                // Record token usage for completed stream
+                const outputTokens = tokenCountingService.estimateOutputTokens(fullText);
+                const duration = Date.now() - startTime;
+                
+                tokenCountingService.recordUsage({
+                  requestId,
+                  model,
+                  action: 'stream',
+                  inputTokens,
+                  outputTokens,
+                  requestType: 'host',
+                  duration,
+                  success: true
+                });
+                
+                console.log(`🎯 Stream completed: ${fullText.length} chars (${inputTokens}→${outputTokens} tokens, ${duration}ms)`);
                 onComplete?.(fullText);
                 return fullText;
               } else if (data.type === 'error') {
@@ -134,6 +217,19 @@ export class ClaudeLLMService {
       
     } catch (error) {
       console.error('❌ Claude streaming failed:', error);
+      
+      // Record failed streaming request
+      tokenCountingService.recordUsage({
+        requestId: `stream-failed-${Date.now()}`,
+        model: 'claude-3-5-haiku-20241022',
+        action: 'stream',
+        inputTokens: 0, // Will count if available
+        outputTokens: 0,
+        requestType: 'host',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
       const err = error instanceof Error ? error : new Error('Unknown error');
       onError?.(err);
       // Fall back to regular generation
@@ -144,6 +240,12 @@ export class ClaudeLLMService {
   async analyzeContent(content: string): Promise<LLMAnalysis> {
     try {
       console.log('🧠 Analyzing content with Claude...');
+      const startTime = Date.now();
+      const requestId = `analyze-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const model = 'claude-3-5-haiku-20241022';
+      
+      // Count input tokens (rough estimate for analysis prompt)
+      const inputTokens = tokenCountingService.estimateTokens(content + ' Analysis request');
 
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
@@ -159,13 +261,41 @@ export class ClaudeLLMService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('Claude analyze error:', errorData.error);
+        
+        // Record failed request
+        tokenCountingService.recordUsage({
+          requestId,
+          model,
+          action: 'analyze',
+          inputTokens,
+          outputTokens: 0,
+          requestType: 'host',
+          success: false,
+          error: `HTTP ${response.status}`
+        });
+        
         return this.getSimpleAnalysis(content);
       }
 
       const data = await response.json();
+      const duration = Date.now() - startTime;
       
       if (data.success && data.analysis) {
-        console.log('✅ Content analysis completed');
+        // Record successful analysis
+        const outputTokens = tokenCountingService.estimateOutputTokens(JSON.stringify(data.analysis));
+        
+        tokenCountingService.recordUsage({
+          requestId,
+          model,
+          action: 'analyze',
+          inputTokens,
+          outputTokens,
+          requestType: 'host',
+          duration,
+          success: true
+        });
+        
+        console.log(`✅ Content analysis completed (${inputTokens}→${outputTokens} tokens, ${duration}ms)`);
         return data.analysis;
       } else {
         throw new Error('Invalid analysis response');
@@ -254,6 +384,10 @@ export class ClaudeLLMService {
   }
 
   // Private helper methods
+  private getDefaultSystemPrompt(): string {
+    return 'You are a professional news broadcaster generating engaging narrations.';
+  }
+
   private getFallbackNarration(prompt: string): string {
     // Extract some content from the prompt for a basic narration
     const contentMatch = prompt.match(/Content: (.+?)(?:\n|Engagement|$)/i);
