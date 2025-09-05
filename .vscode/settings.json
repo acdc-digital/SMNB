@@ -1,0 +1,19 @@
+{
+  "material-icon-theme.folders.associations": {
+    "smnb": "src",
+    "claude": "claude",
+    "trunk": "batch",
+    "notes": "docs",
+    "charts": "include",
+    "instructions": "rules",
+    "agents": "robot"
+  },
+  "workbench.iconTheme": "material-icon-theme",
+  "chat.mcp.discovery.enabled": {
+    "claude-desktop": true,
+    "windsurf": true,
+    "cursor-global": true,
+    "cursor-workspace": true
+  },
+  "github.copilot.chat.virtualTools.threshold": 50
+}
