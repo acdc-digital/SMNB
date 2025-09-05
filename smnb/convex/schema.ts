@@ -32,6 +32,11 @@ export default defineSchema({
     session_id: v.optional(v.string()), // Link to host_sessions if applicable
     source_post_id: v.optional(v.string()), // Link to originating post if applicable
     metadata: v.optional(v.string()), // JSON blob for additional data
+    // Enhanced tool tracking
+    tools_used: v.optional(v.string()), // Comma-separated list of tool names
+    tool_definitions_tokens: v.optional(v.number()), // Tokens used for tool definitions
+    tool_results_tokens: v.optional(v.number()), // Tokens used for tool results
+    has_tools: v.optional(v.boolean()), // Whether this request used tools
   })
     .index("by_timestamp", ["timestamp"])
     .index("by_model", ["model"])
@@ -39,7 +44,8 @@ export default defineSchema({
     .index("by_request_type", ["request_type"])
     .index("by_success", ["success"])
     .index("by_session_id", ["session_id"])
-    .index("by_source_post_id", ["source_post_id"]),
+    .index("by_source_post_id", ["source_post_id"])
+    .index("by_has_tools", ["has_tools"]), // New index for tool usage queries
 
   live_feed_posts: defineTable({
     id: v.string(),
