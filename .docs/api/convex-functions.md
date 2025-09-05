@@ -6,11 +6,11 @@ SMNB uses Convex as its reactive database backend, providing real-time synchroni
 
 ## 🔄 Function Types
 
-| Type | Purpose | Example Use Case |
-|------|---------|------------------|
-| **Query** | Read data with automatic caching | Fetch live posts, get documents |
-| **Mutation** | Insert, update, delete data | Store Reddit posts, update documents |
-| **Action** | Call external APIs | Reddit API integration, AI processing |
+| Type         | Purpose                          | Example Use Case                      |
+| ------------ | -------------------------------- | ------------------------------------- |
+| **Query**    | Read data with automatic caching | Fetch live posts, get documents       |
+| **Mutation** | Insert, update, delete data      | Store Reddit posts, update documents  |
+| **Action**   | Call external APIs               | Reddit API integration, AI processing |
 
 ## 📊 Database Schema Overview
 
@@ -81,7 +81,7 @@ erDiagram
     token_usage ||--o{ host_sessions : "tracks"
 ```
 
----
+***
 
 ## 🔥 Live Feed Functions
 
@@ -90,6 +90,7 @@ erDiagram
 Store Reddit posts in the live feed with duplicate detection.
 
 **Parameters**:
+
 ```typescript
 {
   posts: LiveFeedPost[],
@@ -120,6 +121,7 @@ interface LiveFeedPost {
 ```
 
 **Example Usage**:
+
 ```typescript
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -143,6 +145,7 @@ function LiveFeedComponent() {
 ```
 
 **Response**:
+
 ```typescript
 {
   requested: number;      // Total posts requested to store
@@ -159,6 +162,7 @@ function LiveFeedComponent() {
 Retrieve live feed posts with optional filtering.
 
 **Parameters**:
+
 ```typescript
 {
   limit?: number;      // Default: 50
@@ -167,6 +171,7 @@ Retrieve live feed posts with optional filtering.
 ```
 
 **Example Usage**:
+
 ```typescript
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -193,7 +198,7 @@ function FeedDisplay() {
 }
 ```
 
----
+***
 
 ## 📄 Editor Document Functions
 
@@ -202,6 +207,7 @@ function FeedDisplay() {
 Create a new editor document with version control.
 
 **Parameters**:
+
 ```typescript
 {
   document_id: string;
@@ -215,6 +221,7 @@ Create a new editor document with version control.
 ```
 
 **Example Usage**:
+
 ```typescript
 const createDocument = useMutation(api.redditFeed.createEditorDocument);
 
@@ -236,6 +243,7 @@ const handleCreateDocument = async () => {
 Update existing document or create if doesn't exist.
 
 **Example Usage**:
+
 ```typescript
 const updateDocument = useMutation(api.redditFeed.updateEditorDocument);
 
@@ -253,6 +261,7 @@ const handleSave = async (documentId: string, content: string) => {
 Retrieve a specific document by ID.
 
 **Example Usage**:
+
 ```typescript
 const document = useQuery(api.redditFeed.getEditorDocument, { 
   document_id: "doc_1703875200" 
@@ -269,6 +278,7 @@ if (document) {
 Get list of recent documents.
 
 **Example Usage**:
+
 ```typescript
 const documents = useQuery(api.redditFeed.listEditorDocuments, { limit: 10 });
 
@@ -288,7 +298,7 @@ return (
 );
 ```
 
----
+***
 
 ## 🎬 Host Session Functions
 
@@ -297,6 +307,7 @@ return (
 Create a new broadcasting host session.
 
 **Parameters**:
+
 ```typescript
 {
   session_id: string;
@@ -309,6 +320,7 @@ Create a new broadcasting host session.
 ```
 
 **Example Usage**:
+
 ```typescript
 const createSession = useMutation(api.redditFeed.createHostSession);
 
@@ -331,6 +343,7 @@ const startBroadcast = async () => {
 Update host session content during live broadcasting.
 
 **Example Usage**:
+
 ```typescript
 const updateHost = useMutation(api.redditFeed.updateHostDocument);
 
@@ -346,7 +359,7 @@ const addNarration = async (sessionId: string, newContent: string) => {
 };
 ```
 
----
+***
 
 ## 📚 Story History Functions
 
@@ -355,6 +368,7 @@ const addNarration = async (sessionId: string, newContent: string) => {
 Add completed story to permanent history.
 
 **Parameters**:
+
 ```typescript
 {
   story_id: string;
@@ -381,6 +395,7 @@ Add completed story to permanent history.
 ```
 
 **Example Usage**:
+
 ```typescript
 const addStory = useMutation(api.storyHistory.addStory);
 
@@ -413,6 +428,7 @@ const saveCompletedStory = async (story: StoryData) => {
 Retrieve stories with optional filtering.
 
 **Example Usage**:
+
 ```typescript
 // Get latest 50 stories
 const stories = useQuery(api.storyHistory.getStories, { limit: 50 });
@@ -448,6 +464,7 @@ return (
 Get stories from last N hours.
 
 **Example Usage**:
+
 ```typescript
 // Last 24 hours
 const recentStories = useQuery(api.storyHistory.getRecentStories, { hours: 24 });
@@ -464,6 +481,7 @@ const recentHostStories = useQuery(api.storyHistory.getRecentStories, {
 Filter stories by priority level.
 
 **Example Usage**:
+
 ```typescript
 const highPriorityStories = useQuery(api.storyHistory.getStoriesByPriority, { 
   priority: "high",
@@ -475,7 +493,7 @@ const breakingNews = highPriorityStories?.filter(story =>
 );
 ```
 
----
+***
 
 ## 📊 Token Usage Functions
 
@@ -484,6 +502,7 @@ const breakingNews = highPriorityStories?.filter(story =>
 Track Claude AI token consumption for analytics.
 
 **Parameters**:
+
 ```typescript
 {
   request_id: string;
@@ -505,6 +524,7 @@ Track Claude AI token consumption for analytics.
 ```
 
 **Example Usage**:
+
 ```typescript
 const recordUsage = useMutation(api.tokenUsage.recordTokenUsage);
 
@@ -531,6 +551,7 @@ const trackTokenUsage = async (claudeResponse: any) => {
 Retrieve token usage analytics.
 
 **Example Usage**:
+
 ```typescript
 const usageStats = useQuery(api.tokenUsage.getTokenUsageStats, {
   startTime: Date.now() - (24 * 60 * 60 * 1000), // Last 24 hours
@@ -544,13 +565,14 @@ const totalTokens = usageStats?.reduce((sum, record) => sum + record.total_token
 console.log(`24h Usage: ${totalTokens} tokens, $${totalCost?.toFixed(4)}`);
 ```
 
----
+***
 
 ## 🔍 Search Functions
 
 ### Search Live Feed Posts
 
 **Example Usage**:
+
 ```typescript
 // Search posts by title
 const searchResults = useQuery(api.redditFeed.searchLiveFeedPosts, {
@@ -563,6 +585,7 @@ const searchResults = useQuery(api.redditFeed.searchLiveFeedPosts, {
 ### Search Stories
 
 **Example Usage**:
+
 ```typescript
 // Search story narratives
 const storySearch = useQuery(api.storyHistory.searchStories, {
@@ -572,7 +595,7 @@ const storySearch = useQuery(api.storyHistory.searchStories, {
 });
 ```
 
----
+***
 
 ## 🎯 Real-time Updates
 
@@ -660,11 +683,12 @@ const posts = safeQuery(
 );
 ```
 
----
+***
 
 ## 📋 Best Practices
 
 ### 1. **Use Indexes Effectively**
+
 ```typescript
 // Good - uses index
 const posts = await ctx.db
@@ -681,6 +705,7 @@ const posts = await ctx.db
 ```
 
 ### 2. **Implement Proper Error Handling**
+
 ```typescript
 export const safeStorePosts = mutation({
   args: { posts: v.array(postSchema) },
@@ -703,6 +728,7 @@ export const safeStorePosts = mutation({
 ```
 
 ### 3. **Optimize Query Performance**
+
 ```typescript
 // Use pagination for large datasets
 export const getPaginatedStories = query({
@@ -727,7 +753,7 @@ export const getPaginatedStories = query({
 });
 ```
 
----
+***
 
-*For implementation examples, see [Examples & Tutorials](./examples.md)*  
-*For error handling patterns, see [Error Handling Guide](./error-handling.md)*
+_For implementation examples, see_ [_Examples & Tutorials_](examples.md)\
+&#xNAN;_&#x46;or error handling patterns, see_ [_Error Handling Guide_](error-handling.md)

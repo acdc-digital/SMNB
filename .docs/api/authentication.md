@@ -91,11 +91,11 @@ SMNB uses Reddit's OAuth2 flow for authenticated API access:
 1. Go to [Reddit App Preferences](https://www.reddit.com/prefs/apps)
 2. Click "Create App" or "Create Another App"
 3. Fill out the form:
-   - **Name**: Your application name
-   - **App type**: "web app" 
-   - **Description**: Brief description of your app
-   - **About URL**: Your app's homepage
-   - **Redirect URI**: `http://localhost:8888/auth/reddit/callback`
+   * **Name**: Your application name
+   * **App type**: "web app"
+   * **Description**: Brief description of your app
+   * **About URL**: Your app's homepage
+   * **Redirect URI**: `http://localhost:8888/auth/reddit/callback`
 
 #### 2. **Configure Credentials**
 
@@ -543,26 +543,26 @@ export async function GET() {
 
 ## 🚨 Security Checklist
 
-- [ ] **API Keys**: All keys stored in environment variables
-- [ ] **Validation**: All inputs validated and sanitized  
-- [ ] **Rate Limiting**: Client-side rate limiting implemented
-- [ ] **Error Handling**: No sensitive data exposed in errors
-- [ ] **Logging**: Authentication events logged for monitoring
-- [ ] **Rotation**: API key rotation strategy in place
-- [ ] **Testing**: Authentication tests automated
-- [ ] **Monitoring**: Health checks and alerting configured
-- [ ] **Documentation**: Security practices documented for team
+* [ ] **API Keys**: All keys stored in environment variables
+* [ ] **Validation**: All inputs validated and sanitized
+* [ ] **Rate Limiting**: Client-side rate limiting implemented
+* [ ] **Error Handling**: No sensitive data exposed in errors
+* [ ] **Logging**: Authentication events logged for monitoring
+* [ ] **Rotation**: API key rotation strategy in place
+* [ ] **Testing**: Authentication tests automated
+* [ ] **Monitoring**: Health checks and alerting configured
+* [ ] **Documentation**: Security practices documented for team
 
----
+***
 
 ## 🔗 Related Resources
 
-- **[Reddit API Documentation](https://www.reddit.com/dev/api/oauth)**
-- **[Anthropic API Reference](https://docs.anthropic.com/en/api/getting-started)**
-- **[Convex Authentication](https://docs.convex.dev/auth)**
-- **[Next.js Environment Variables](https://nextjs.org/docs/basic-features/environment-variables)**
+* [**Reddit API Documentation**](https://www.reddit.com/dev/api/oauth)
+* [**Anthropic API Reference**](https://docs.anthropic.com/en/api/getting-started)
+* [**Convex Authentication**](https://docs.convex.dev/auth)
+* [**Next.js Environment Variables**](https://nextjs.org/docs/basic-features/environment-variables)
 
----
+***
 
-*For implementation examples, see [Examples & Tutorials](./examples.md)*  
-*For error handling patterns, see [Error Handling Guide](./error-handling.md)*
+_For implementation examples, see_ [_Examples & Tutorials_](examples.md)\
+&#xNAN;_&#x46;or error handling patterns, see_ [_Error Handling Guide_](error-handling.md)

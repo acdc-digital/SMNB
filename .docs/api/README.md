@@ -56,25 +56,27 @@ graph TB
 
 ## 📚 Documentation Structure
 
-| Section | Description | Use Case |
-|---------|-------------|----------|
-| **[REST API Endpoints](./rest-endpoints.md)** | Next.js API routes for Reddit and Claude integration | External API calls, data fetching |
-| **[Convex Functions](./convex-functions.md)** | Reactive database operations and real-time sync | Live data updates, state management |
-| **[Authentication](./authentication.md)** | API keys, security, and access control | Secure API access |
-| **[Error Handling](./error-handling.md)** | Error codes, troubleshooting, and recovery | Debugging and monitoring |
-| **[Rate Limits](./rate-limits.md)** | Reddit API limitations and best practices | Sustainable API usage |
-| **[Architecture](./architecture.md)** | System design and processing pipeline | Understanding data flow |
-| **[Examples & Tutorials](./examples.md)** | Code samples and getting started guides | Implementation help |
+| Section                                     | Description                                          | Use Case                            |
+| ------------------------------------------- | ---------------------------------------------------- | ----------------------------------- |
+| [**REST API Endpoints**](rest-endpoints.md) | Next.js API routes for Reddit and Claude integration | External API calls, data fetching   |
+| [**Convex Functions**](convex-functions.md) | Reactive database operations and real-time sync      | Live data updates, state management |
+| [**Authentication**](authentication.md)     | API keys, security, and access control               | Secure API access                   |
+| [**Error Handling**](error-handling.md)     | Error codes, troubleshooting, and recovery           | Debugging and monitoring            |
+| [**Rate Limits**](rate-limits.md)           | Reddit API limitations and best practices            | Sustainable API usage               |
+| [**Architecture**](architecture.md)         | System design and processing pipeline                | Understanding data flow             |
+| [**Examples & Tutorials**](examples.md)     | Code samples and getting started guides              | Implementation help                 |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm/pnpm
-- Reddit API credentials
-- Anthropic Claude API key
-- Convex account and project
+
+* Node.js 18+ and npm/pnpm
+* Reddit API credentials
+* Anthropic Claude API key
+* Convex account and project
 
 ### Basic Setup
+
 ```bash
 # Clone and install
 git clone <repository-url>
@@ -91,6 +93,7 @@ npm run dev:convex   # Convex backend
 ```
 
 ### First API Call
+
 ```typescript
 // Fetch Reddit posts
 const response = await fetch('/api/reddit?subreddit=worldnews&limit=5');
@@ -110,28 +113,32 @@ const analysis = await fetch('/api/claude', {
 ## 🎯 Core Features
 
 ### 🔥 Live Feed Processing
-- **Real-time Reddit content ingestion**
-- **Multi-agent processing pipeline**
-- **Intelligent content scoring and prioritization**
-- **Smart scheduling and publishing**
+
+* **Real-time Reddit content ingestion**
+* **Multi-agent processing pipeline**
+* **Intelligent content scoring and prioritization**
+* **Smart scheduling and publishing**
 
 ### 🧠 AI-Powered Analysis
-- **Claude AI integration for content analysis**
-- **Sentiment analysis and categorization**
-- **Quality scoring and relevance detection**
-- **Automated content enrichment**
+
+* **Claude AI integration for content analysis**
+* **Sentiment analysis and categorization**
+* **Quality scoring and relevance detection**
+* **Automated content enrichment**
 
 ### 📊 Data Management
-- **Convex reactive database**
-- **Real-time synchronization**
-- **Comprehensive metadata tracking**
-- **Advanced search and filtering**
+
+* **Convex reactive database**
+* **Real-time synchronization**
+* **Comprehensive metadata tracking**
+* **Advanced search and filtering**
 
 ### 🎬 Broadcasting Features
-- **Host session management**
-- **Story generation and narration**
-- **Editor document management**
-- **Token usage tracking**
+
+* **Host session management**
+* **Story generation and narration**
+* **Editor document management**
+* **Token usage tracking**
 
 ## 📋 API Principles
 
@@ -147,19 +154,19 @@ Following GitBook's seven principles of great API documentation:
 
 ## 🔗 Related Resources
 
-- **[GitHub Repository](https://github.com/acdc-digital/SMNB)** - Source code and issues
-- **[Convex Documentation](https://docs.convex.dev)** - Database and backend functions
-- **[Reddit API](https://www.reddit.com/dev/api/)** - External data source
-- **[Anthropic Claude](https://docs.anthropic.com)** - AI analysis capabilities
+* [**GitHub Repository**](https://github.com/acdc-digital/SMNB) - Source code and issues
+* [**Convex Documentation**](https://docs.convex.dev) - Database and backend functions
+* [**Reddit API**](https://www.reddit.com/dev/api/) - External data source
+* [**Anthropic Claude**](https://docs.anthropic.com) - AI analysis capabilities
 
 ## 📞 Support
 
-- **Issues**: Report bugs on GitHub Issues
-- **Questions**: Use GitHub Discussions
-- **API Status**: Check Convex dashboard for backend status
+* **Issues**: Report bugs on GitHub Issues
+* **Questions**: Use GitHub Discussions
+* **API Status**: Check Convex dashboard for backend status
 
----
+***
 
-*Last Updated: December 2024*  
-*Version: 2.0.0*  
-*Maintained by: SMNB Development Team*
+_Last Updated: December 2024_\
+&#xNAN;_&#x56;ersion: 2.0.0_\
+&#xNAN;_&#x4D;aintained by: SMNB Development Team_

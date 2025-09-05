@@ -21,6 +21,7 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local`:
+
 ```bash
 # Reddit API Credentials
 REDDIT_CLIENT_ID=your_reddit_client_id
@@ -57,7 +58,7 @@ curl -X POST "http://localhost:8888/api/claude" \
   -d '{"action": "test", "prompt": "Hello"}'
 ```
 
----
+***
 
 ## 📱 Frontend Integration Examples
 
@@ -313,7 +314,7 @@ export default function HomePage() {
 }
 ```
 
----
+***
 
 ## 🤖 AI Integration Examples
 
@@ -535,7 +536,7 @@ export function StreamingAnalysis({ content, onAnalysisComplete }: StreamingAnal
 }
 ```
 
----
+***
 
 ## 📊 Analytics Dashboard Example
 
@@ -737,7 +738,7 @@ function MetricCard({ title, value, icon, trend }: MetricCardProps) {
 }
 ```
 
----
+***
 
 ## 🔧 Advanced Implementation Examples
 
@@ -969,7 +970,7 @@ export async function fetchUrgentRedditPosts(subreddit: string) {
 }
 ```
 
----
+***
 
 ## 🧪 Testing Examples
 
@@ -1147,7 +1148,7 @@ describe('LiveFeedDisplay', () => {
 });
 ```
 
----
+***
 
 ## 🚀 Deployment Examples
 
@@ -1248,7 +1249,7 @@ services:
     restart: unless-stopped
 ```
 
----
+***
 
 ## 📚 Additional Resources
 
@@ -1342,36 +1343,40 @@ echo "✅ All tests completed"
 }
 ```
 
----
+***
 
 ## 🎯 Best Practices Summary
 
 ### **Development**
-- Always use TypeScript for type safety
-- Implement proper error handling at every layer
-- Use the custom hooks for common patterns
-- Test both happy path and error scenarios
-- Monitor API usage and costs
+
+* Always use TypeScript for type safety
+* Implement proper error handling at every layer
+* Use the custom hooks for common patterns
+* Test both happy path and error scenarios
+* Monitor API usage and costs
 
 ### **Performance**
-- Implement caching strategies
-- Use batching for API calls
-- Optimize Convex queries with proper indexes
-- Monitor performance metrics
+
+* Implement caching strategies
+* Use batching for API calls
+* Optimize Convex queries with proper indexes
+* Monitor performance metrics
 
 ### **Security**
-- Never expose API keys to the client
-- Validate all inputs server-side
-- Implement rate limiting
-- Use HTTPS in production
+
+* Never expose API keys to the client
+* Validate all inputs server-side
+* Implement rate limiting
+* Use HTTPS in production
 
 ### **Deployment**
-- Use environment variables for configuration
-- Implement health checks
-- Set up monitoring and alerting
-- Use CI/CD for automated deployments
 
----
+* Use environment variables for configuration
+* Implement health checks
+* Set up monitoring and alerting
+* Use CI/CD for automated deployments
 
-*For more architectural details, see [System Architecture](./architecture.md)*  
-*For troubleshooting, see [Error Handling Guide](./error-handling.md)*
+***
+
+_For more architectural details, see_ [_System Architecture_](architecture.md)\
+&#xNAN;_&#x46;or troubleshooting, see_ [_Error Handling Guide_](error-handling.md)

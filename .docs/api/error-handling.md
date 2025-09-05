@@ -21,6 +21,7 @@ interface ErrorResponse {
 ```
 
 **Example Error Response**:
+
 ```json
 {
   "success": false,
@@ -37,21 +38,24 @@ interface ErrorResponse {
 }
 ```
 
----
+***
 
 ## 🔴 HTTP Status Codes
 
 ### 4xx Client Errors
 
 #### **400 Bad Request**
+
 Invalid request parameters or malformed data.
 
 **Common Causes**:
-- Missing required parameters
-- Invalid parameter values
-- Malformed JSON body
+
+* Missing required parameters
+* Invalid parameter values
+* Malformed JSON body
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -65,6 +69,7 @@ Invalid request parameters or malformed data.
 ```
 
 **Resolution**:
+
 ```typescript
 // ✅ Correct request
 const response = await fetch('/api/reddit?subreddit=worldnews&limit=5');
@@ -74,14 +79,17 @@ const response = await fetch('/api/reddit?limit=5');
 ```
 
 #### **401 Unauthorized**
+
 Authentication failed or missing credentials.
 
 **Common Causes**:
-- Invalid API key
-- Expired authentication token
-- Missing authentication headers
+
+* Invalid API key
+* Expired authentication token
+* Missing authentication headers
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -95,6 +103,7 @@ Authentication failed or missing credentials.
 ```
 
 **Resolution**:
+
 ```bash
 # Check environment variables
 echo $ANTHROPIC_API_KEY
@@ -106,14 +115,17 @@ echo $REDDIT_CLIENT_ID
 ```
 
 #### **403 Forbidden**
+
 Access denied due to service restrictions.
 
 **Common Causes**:
-- Reddit API blocked your IP
-- Service temporarily unavailable
-- Insufficient permissions
+
+* Reddit API blocked your IP
+* Service temporarily unavailable
+* Insufficient permissions
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -128,20 +140,24 @@ Access denied due to service restrictions.
 ```
 
 **Resolution**:
-- Wait 10-15 minutes before retry
-- Check Reddit API status
-- Consider using different User-Agent
-- Verify Reddit app permissions
+
+* Wait 10-15 minutes before retry
+* Check Reddit API status
+* Consider using different User-Agent
+* Verify Reddit app permissions
 
 #### **404 Not Found**
+
 Resource or endpoint not found.
 
 **Common Causes**:
-- Invalid API endpoint
-- Non-existent subreddit
-- Deleted content
+
+* Invalid API endpoint
+* Non-existent subreddit
+* Deleted content
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -155,15 +171,18 @@ Resource or endpoint not found.
 ```
 
 #### **429 Rate Limited**
+
 API rate limit exceeded.
 
 **Common Causes**:
-- Too many requests in short time
-- Reddit API rate limiting (60/min)
-- Claude API rate limiting
-- Circuit breaker activated
+
+* Too many requests in short time
+* Reddit API rate limiting (60/min)
+* Claude API rate limiting
+* Circuit breaker activated
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -180,6 +199,7 @@ API rate limit exceeded.
 ```
 
 **Resolution**:
+
 ```typescript
 // Implement exponential backoff
 const retryWithBackoff = async (fn: () => Promise<any>, maxRetries = 3) => {
@@ -202,14 +222,17 @@ const retryWithBackoff = async (fn: () => Promise<any>, maxRetries = 3) => {
 ### 5xx Server Errors
 
 #### **500 Internal Server Error**
+
 Unexpected server-side error.
 
 **Common Causes**:
-- Unhandled exceptions
-- Database connection failures
-- Third-party service errors
+
+* Unhandled exceptions
+* Database connection failures
+* Third-party service errors
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -223,14 +246,17 @@ Unexpected server-side error.
 ```
 
 #### **503 Service Unavailable**
+
 Service temporarily unavailable due to circuit breaker or maintenance.
 
 **Common Causes**:
-- Circuit breaker open
-- Service overload
-- Scheduled maintenance
+
+* Circuit breaker open
+* Service overload
+* Scheduled maintenance
 
 **Example**:
+
 ```json
 {
   "success": false,
@@ -244,7 +270,7 @@ Service temporarily unavailable due to circuit breaker or maintenance.
 }
 ```
 
----
+***
 
 ## 🔧 Service-Specific Errors
 
@@ -271,6 +297,7 @@ graph TD
 ```
 
 #### **Authentication Errors**
+
 ```json
 {
   "success": false,
@@ -284,6 +311,7 @@ graph TD
 ```
 
 **Debugging Steps**:
+
 ```bash
 # 1. Verify credentials
 echo "Client ID: $REDDIT_CLIENT_ID"
@@ -298,6 +326,7 @@ curl -X POST "https://www.reddit.com/api/v1/access_token" \
 ```
 
 #### **Rate Limiting Errors**
+
 ```typescript
 // Reddit API rate limiting implementation
 class RedditRateLimiter {
@@ -338,6 +367,7 @@ class RedditRateLimiter {
 ### Claude AI Errors
 
 #### **Token Limit Errors**
+
 ```json
 {
   "success": false,
@@ -352,6 +382,7 @@ class RedditRateLimiter {
 ```
 
 **Resolution**:
+
 ```typescript
 // Token counting and chunking
 const countTokens = async (text: string): Promise<number> => {
@@ -391,6 +422,7 @@ const chunkText = (text: string, maxTokens: number): string[] => {
 ```
 
 #### **Model Errors**
+
 ```json
 {
   "success": false,
@@ -406,6 +438,7 @@ const chunkText = (text: string, maxTokens: number): string[] => {
 ### Convex Errors
 
 #### **Database Errors**
+
 ```typescript
 // Convex error handling in mutations
 export const safeStorePosts = mutation({
@@ -454,7 +487,7 @@ export const safeStorePosts = mutation({
 });
 ```
 
----
+***
 
 ## 🔄 Error Recovery Strategies
 
@@ -617,7 +650,7 @@ class FallbackDataProvider {
 }
 ```
 
----
+***
 
 ## 🐛 Debugging Guide
 
@@ -738,7 +771,7 @@ export async function GET() {
 }
 ```
 
----
+***
 
 ## 📊 Error Monitoring & Alerting
 
@@ -894,15 +927,14 @@ class PerformanceMonitor {
 }
 ```
 
----
+***
 
 ## ❓ Common Issues & Solutions
 
 ### Issue: "Reddit API access blocked"
 
-**Symptoms**: 403 errors from Reddit API
-**Causes**: IP temporarily blocked, invalid User-Agent, rate limiting
-**Solutions**:
+**Symptoms**: 403 errors from Reddit API **Causes**: IP temporarily blocked, invalid User-Agent, rate limiting **Solutions**:
+
 1. Wait 10-15 minutes before retry
 2. Verify User-Agent format: `AppName/Version (by /u/username)`
 3. Check Reddit API status
@@ -910,9 +942,8 @@ class PerformanceMonitor {
 
 ### Issue: "Claude API key not working"
 
-**Symptoms**: 401 errors from Claude API
-**Causes**: Invalid key, expired key, wrong environment
-**Solutions**:
+**Symptoms**: 401 errors from Claude API **Causes**: Invalid key, expired key, wrong environment **Solutions**:
+
 1. Verify key format: `sk-ant-api03-...`
 2. Check environment variable: `ANTHROPIC_API_KEY`
 3. Test with debug endpoint: `/api/claude/debug`
@@ -920,9 +951,8 @@ class PerformanceMonitor {
 
 ### Issue: "Convex functions not updating"
 
-**Symptoms**: UI not reflecting database changes
-**Causes**: Client not connected, function errors, caching issues
-**Solutions**:
+**Symptoms**: UI not reflecting database changes **Causes**: Client not connected, function errors, caching issues **Solutions**:
+
 1. Check Convex connection status
 2. Verify function permissions
 3. Check browser console for errors
@@ -930,24 +960,23 @@ class PerformanceMonitor {
 
 ### Issue: "High error rates"
 
-**Symptoms**: Multiple API failures
-**Causes**: Service outages, rate limiting, configuration issues
-**Solutions**:
+**Symptoms**: Multiple API failures **Causes**: Service outages, rate limiting, configuration issues **Solutions**:
+
 1. Check service status pages
 2. Implement circuit breakers
 3. Enable fallback mechanisms
 4. Review error patterns in logs
 
----
+***
 
 ## 🔗 Support Resources
 
-- **[GitHub Issues](https://github.com/acdc-digital/SMNB/issues)** - Report bugs and request features
-- **[Reddit API Status](https://www.redditstatus.com/)** - Check Reddit service status
-- **[Anthropic Status](https://status.anthropic.com/)** - Check Claude API status
-- **[Convex Status](https://status.convex.dev/)** - Check Convex service status
+* [**GitHub Issues**](https://github.com/acdc-digital/SMNB/issues) - Report bugs and request features
+* [**Reddit API Status**](https://www.redditstatus.com/) - Check Reddit service status
+* [**Anthropic Status**](https://status.anthropic.com/) - Check Claude API status
+* [**Convex Status**](https://status.convex.dev/) - Check Convex service status
 
----
+***
 
-*For authentication troubleshooting, see [Authentication Guide](./authentication.md)*  
-*For rate limiting info, see [Rate Limits Documentation](./rate-limits.md)*
+_For authentication troubleshooting, see_ [_Authentication Guide_](authentication.md)\
+&#xNAN;_&#x46;or rate limiting info, see_ [_Rate Limits Documentation_](rate-limits.md)

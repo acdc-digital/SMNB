@@ -952,34 +952,34 @@ interface TestingStrategy {
 
 ### **Frontend Technology Choices**
 
-| Technology | Rationale | Alternatives Considered |
-|------------|-----------|------------------------|
-| **Next.js 15** | Full-stack React framework with App Router, excellent TypeScript support | Remix, Nuxt.js, Vite |
-| **React 19** | Component architecture, hooks, excellent ecosystem | Vue.js, Svelte, Angular |
-| **TypeScript** | Type safety, excellent IDE support, reduces runtime errors | JavaScript, Flow |
-| **Tailwind CSS** | Utility-first CSS, consistent design system, small bundle | Styled Components, CSS Modules |
-| **Convex** | Real-time database, TypeScript-first, automatic caching | Supabase, Firebase, PlanetScale |
+| Technology       | Rationale                                                                | Alternatives Considered         |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------- |
+| **Next.js 15**   | Full-stack React framework with App Router, excellent TypeScript support | Remix, Nuxt.js, Vite            |
+| **React 19**     | Component architecture, hooks, excellent ecosystem                       | Vue.js, Svelte, Angular         |
+| **TypeScript**   | Type safety, excellent IDE support, reduces runtime errors               | JavaScript, Flow                |
+| **Tailwind CSS** | Utility-first CSS, consistent design system, small bundle                | Styled Components, CSS Modules  |
+| **Convex**       | Real-time database, TypeScript-first, automatic caching                  | Supabase, Firebase, PlanetScale |
 
 ### **Backend Technology Choices**
 
-| Technology | Rationale | Alternatives Considered |
-|------------|-----------|------------------------|
-| **Convex** | Real-time sync, TypeScript integration, automatic scaling | Express.js, Fastify, tRPC |
-| **Next.js API Routes** | Co-located with frontend, excellent TypeScript support | Express.js, Fastify, Koa |
-| **Reddit API** | Rich content source, comprehensive API, active community | Twitter API, HackerNews API |
-| **Claude AI** | Advanced reasoning, large context window, competitive pricing | OpenAI GPT, Google Gemini |
+| Technology             | Rationale                                                     | Alternatives Considered     |
+| ---------------------- | ------------------------------------------------------------- | --------------------------- |
+| **Convex**             | Real-time sync, TypeScript integration, automatic scaling     | Express.js, Fastify, tRPC   |
+| **Next.js API Routes** | Co-located with frontend, excellent TypeScript support        | Express.js, Fastify, Koa    |
+| **Reddit API**         | Rich content source, comprehensive API, active community      | Twitter API, HackerNews API |
+| **Claude AI**          | Advanced reasoning, large context window, competitive pricing | OpenAI GPT, Google Gemini   |
 
 ### **Infrastructure Choices**
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| **Hosting** | Vercel/Railway | Excellent Next.js integration, automatic deployments |
-| **Database** | Convex Cloud | Managed service, real-time capabilities, TypeScript-first |
-| **CDN** | Vercel Edge Network | Automatic optimization, global distribution |
-| **Monitoring** | Convex Dashboard + Custom | Built-in monitoring plus custom metrics |
-| **Version Control** | GitHub | Industry standard, excellent CI/CD integration |
+| Component           | Technology                | Rationale                                                 |
+| ------------------- | ------------------------- | --------------------------------------------------------- |
+| **Hosting**         | Vercel/Railway            | Excellent Next.js integration, automatic deployments      |
+| **Database**        | Convex Cloud              | Managed service, real-time capabilities, TypeScript-first |
+| **CDN**             | Vercel Edge Network       | Automatic optimization, global distribution               |
+| **Monitoring**      | Convex Dashboard + Custom | Built-in monitoring plus custom metrics                   |
+| **Version Control** | GitHub                    | Industry standard, excellent CI/CD integration            |
 
----
+***
 
 ## 🎯 Design Principles
 
@@ -996,16 +996,16 @@ interface TestingStrategy {
 
 ### **Architectural Patterns Used**
 
-- **Repository Pattern**: Data access abstraction
-- **Service Layer Pattern**: Business logic encapsulation
-- **Observer Pattern**: Real-time event handling
-- **Circuit Breaker Pattern**: External service failure protection
-- **Rate Limiting Pattern**: API usage management
-- **Cache-Aside Pattern**: Performance optimization
-- **Event Sourcing**: Audit trail and state reconstruction
-- **CQRS**: Separate read and write models where beneficial
+* **Repository Pattern**: Data access abstraction
+* **Service Layer Pattern**: Business logic encapsulation
+* **Observer Pattern**: Real-time event handling
+* **Circuit Breaker Pattern**: External service failure protection
+* **Rate Limiting Pattern**: API usage management
+* **Cache-Aside Pattern**: Performance optimization
+* **Event Sourcing**: Audit trail and state reconstruction
+* **CQRS**: Separate read and write models where beneficial
 
----
+***
 
-*For implementation details, see [Examples & Tutorials](./examples.md)*  
-*For API specifics, see [REST Endpoints](./rest-endpoints.md) and [Convex Functions](./convex-functions.md)*
+_For implementation details, see_ [_Examples & Tutorials_](examples.md)\
+&#xNAN;_&#x46;or API specifics, see_ [_REST Endpoints_](rest-endpoints.md) _and_ [_Convex Functions_](convex-functions.md)
