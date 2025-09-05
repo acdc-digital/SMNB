@@ -92,27 +92,49 @@ export async function GET(request: NextRequest) {
     
     // Handle circuit breaker specifically
     if (errorMessage.includes('Circuit breaker')) {
+      // Extract remaining time from error message if available
+      const timeMatch = errorMessage.match(/(\d+) more seconds/);
+      const retryAfter = timeMatch ? parseInt(timeMatch[1]) : 120;
+      
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Reddit API is temporarily unavailable due to rate limits. Please try again later.',
+          error: 'Reddit API is temporarily slowing down due to rate limits. The system is automatically recovering.',
+          userMessage: 'Loading may be slower while we respect Reddit\'s request limits. Your feed will resume shortly.',
           circuitBreakerOpen: true,
+          retryAfter,
           posts: []
         },
-        { status: 503 } // Service Unavailable
+        { 
+          status: 503,
+          headers: {
+            'Retry-After': retryAfter.toString()
+          }
+        }
       );
     }
     
     // Handle rate limiting specifically
     if (errorMessage.includes('Rate limited') || errorMessage.includes('429')) {
+      // Extract backoff time from error message if available
+      const backoffMatch = errorMessage.match(/(\d+)ms delay/);
+      const retryAfter = backoffMatch ? Math.ceil(parseInt(backoffMatch[1]) / 1000) : 30;
+      
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Reddit API rate limit reached. Please wait before making more requests.',
+          error: 'Reddit API rate limit reached. Automatic throttling is active.',
+          userMessage: 'Slowing down requests to respect Reddit\'s limits. Your feed will continue automatically.',
           rateLimited: true,
+          retryAfter,
           posts: []
         },
-        { status: 429 }
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString()
+          }
+        }
       );
     }
     
