@@ -203,6 +203,19 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                       <h3 className="font-medium text-foreground truncate">
                         {post.title}
                       </h3>
+                      
+                      {/* Story Thread Update Badge */}
+                      {post.updateBadge && post.updateBadge.isVisible && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium animate-in zoom-in-50 ${
+                          post.updateBadge.type === 'breaking' ? 'bg-red-500 text-white' :
+                          post.updateBadge.type === 'follow_up' ? 'bg-blue-500 text-white' :
+                          post.updateBadge.type === 'correction' ? 'bg-yellow-500 text-white' :
+                          'bg-orange-500 text-white'
+                        }`}>
+                          {post.updateBadge.text}
+                        </span>
+                      )}
+                      
                       {/* Enhanced indicators */}
                       {post.priority_score && post.priority_score > 0.7 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 animate-in zoom-in-50 delay-300">
@@ -225,6 +238,11 @@ export default function SimpleLiveFeed({ className }: SimpleLiveFeedProps) {
                       {post.categories && post.categories.length > 0 && (
                         <span className="ml-2 text-blue-600 dark:text-blue-400">
                           • {post.categories.join(', ')}
+                        </span>
+                      )}
+                      {post.threadTopic && (
+                        <span className="ml-2 text-purple-600 dark:text-purple-400">
+                          • 🧵 {post.threadTopic}
                         </span>
                       )}
                     </div>
