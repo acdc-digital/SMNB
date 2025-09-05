@@ -326,7 +326,7 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
       import('@/lib/stores/livefeed/simpleLiveFeedStore').then(module => {
         const completedStory = {
           id: `host-${narration.id}`, // Prefix with 'host' for agent type identification
-          narrative: narration.narrative,
+          narrative: narration.writtenStory || narration.narrative, // Use written story if available, fallback to narration
           tone: narration.tone,
           priority: narration.priority,
           timestamp: new Date(),
@@ -344,7 +344,8 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
         
         const { addCompletedStory } = module.useSimpleLiveFeedStore.getState();
         addCompletedStory(completedStory);
-        console.log(`📋 HOST: Added completed story to live feed history: "${narration.narrative.substring(0, 50)}..."`);
+        const storyType = narration.writtenStory ? "written story" : "narration";
+        console.log(`📋 HOST: Added completed ${storyType} to live feed history: "${completedStory.narrative.substring(0, 50)}..."`);
       });
       
       return { narrationHistory: newHistory };

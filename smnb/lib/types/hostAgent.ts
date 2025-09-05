@@ -30,7 +30,8 @@ export interface NewsItem {
 export interface HostNarration {
   id: string;
   newsItemId: string;
-  narrative: string;
+  narrative: string; // For host speaking/narration
+  writtenStory?: string; // Formal written news story for display in history
   tone: 'breaking' | 'developing' | 'analysis' | 'opinion' | 'human-interest';
   priority: 'high' | 'medium' | 'low';
   timestamp: Date;

@@ -855,6 +855,19 @@ export class HostAgentService extends EventEmitter {
 
           console.log(`✅ Live streaming completed for: ${narration.id}`);
           
+          // Generate written story for history display
+          try {
+            const writtenStory = await this.generateWrittenStory(narration, item);
+            if (this.state.currentNarration && this.state.currentNarration.id === narration.id) {
+              this.state.currentNarration.writtenStory = writtenStory;
+            }
+            narration.writtenStory = writtenStory;
+            console.log(`📖 Generated written story for: ${narration.id}`);
+          } catch (error) {
+            console.error('❌ Failed to generate written story:', error);
+            // Continue without written story - will fallback to narration
+          }
+          
           // Save to host document database (async, don't block)
           this.saveNarrationToDatabase(narration, fullText).catch(error => {
             console.error('❌ Failed to save host narration to database:', error);
@@ -1160,6 +1173,18 @@ Focus on: What's new, why it matters, and how it advances the story.
     }
     
     // Complete the narration
+    
+    // Generate written story for history display if not already present
+    if (!narration.writtenStory && narration.metadata?.originalItem) {
+      try {
+        const writtenStory = await this.generateWrittenStory(narration, narration.metadata.originalItem);
+        narration.writtenStory = writtenStory;
+        console.log(`📖 Generated written story for existing narration: ${narration.id}`);
+      } catch (error) {
+        console.error('❌ Failed to generate written story for existing narration:', error);
+        // Continue without written story - will fallback to narration
+      }
+    }
     
     // Save to host document database (async, don't block)
     this.saveNarrationToDatabase(narration, text).catch((error: unknown) => {
@@ -1744,6 +1769,123 @@ Tone: ${this.config.personality} with appropriate urgency for ${updateType}
     this.threadUpdateCounts.clear();
     
     console.log(`🧹 Cleared duplicate detection cache for fresh session - Previous sizes: signatures=${oldSizes.signatures}, titles=${oldSizes.titles}, hashes=${oldSizes.hashes}, narrations=${oldSizes.narrations}, threads=${oldSizes.threads}`);
+  }
+
+  /**
+   * Generate a formal written story from the narration for history display
+   * Converts conversational narration into proper news article format
+   */
+  private async generateWrittenStory(narration: HostNarration, originalItem: NewsItem): Promise<string> {
+    try {
+      console.log(`📝 Generating written story for narration: ${narration.id}`);
+      
+      const personality = HOST_PERSONALITIES[this.config.personality];
+      const verbosity = VERBOSITY_LEVELS[this.config.verbosity];
+      
+      const storyPrompt = `
+Transform this news narration into a formal written news story suitable for reading.
+
+Original narration: ${narration.narrative}
+
+Original news content:
+Title: ${originalItem.title || ''}
+Content: ${originalItem.content}
+Author: ${originalItem.author}
+${originalItem.subreddit ? `Source: r/${originalItem.subreddit}` : ''}
+
+Instructions:
+1. Write a professional news story in ${verbosity.targetLength}
+2. Remove all conversational elements, stage directions, and narrator personality
+3. Focus on the facts and key information
+4. Use formal news writing style with clear structure
+5. Lead with the most important information
+6. Maintain the same tone (${narration.tone}) but in written form
+7. Make it suitable for reading, not listening
+
+Style: Professional news writing
+Length: ${verbosity.targetLength}
+Tone: ${narration.tone} priority news story
+      `.trim();
+
+      if (this.llmService instanceof ClaudeLLMService) {
+        // Use Claude to generate the written story
+        let storyText = '';
+        
+        await this.llmService.generateStream(
+          storyPrompt,
+          {
+            temperature: 0.6, // Slightly lower temperature for more formal writing
+            maxTokens: verbosity.maxTokens,
+            systemPrompt: "You are a professional news writer. Convert conversational narrations into formal, readable news stories. Remove all personality elements and focus on clear, factual reporting."
+          },
+          (chunk: string) => {
+            storyText += chunk;
+          },
+          (fullText: string) => {
+            storyText = fullText;
+            console.log(`📖 Generated written story (${fullText.length} chars): "${fullText.substring(0, 100)}..."`);
+          }
+        );
+        
+        return storyText.trim();
+        
+      } else {
+        // Mock service fallback - create a simplified version
+        const mockStory = this.createMockStory(narration, originalItem);
+        console.log(`📖 Generated mock written story: "${mockStory.substring(0, 100)}..."`);
+        return mockStory;
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to generate written story:', error);
+      // Fallback to a cleaned-up version of the narration
+      return this.createFallbackStory(narration, originalItem);
+    }
+  }
+
+  /**
+   * Create a mock written story for development/testing
+   */
+  private createMockStory(narration: HostNarration, originalItem: NewsItem): string {
+    // Remove obvious conversational elements and create a more formal version
+    let story = narration.narrative
+      .replace(/\*[^*]*\*/g, '') // Remove action descriptions like *adjusts glasses*
+      .replace(/^[^!]*!/g, '') // Remove exclamatory openings
+      .replace(/sounds like|it seems|appears to be/gi, '') // Remove uncertain language
+      .replace(/\b(folks|everyone|you)\b/gi, 'readers') // Make more formal
+      .trim();
+
+    // Add a formal lead if the story doesn't start well
+    if (!story.match(/^[A-Z][^.!?]*\./)) {
+      const source = originalItem.subreddit ? `r/${originalItem.subreddit}` : originalItem.platform;
+      story = `A ${narration.tone} development from ${source}: ${story}`;
+    }
+
+    return story;
+  }
+
+  /**
+   * Create a fallback story when generation fails
+   */
+  private createFallbackStory(narration: HostNarration, originalItem: NewsItem): string {
+    const source = originalItem.subreddit ? `r/${originalItem.subreddit}` : originalItem.platform;
+    const summary = narration.metadata?.summary || originalItem.content.substring(0, 200);
+    
+    return `${this.getTonePrefix(narration.tone)} development reported from ${source}. ${summary}${!summary.endsWith('.') ? '.' : ''} The post by ${originalItem.author} has generated ${originalItem.engagement.comments} comments and ${originalItem.engagement.likes} interactions.`;
+  }
+
+  /**
+   * Get appropriate prefix for tone
+   */
+  private getTonePrefix(tone: HostNarration['tone']): string {
+    switch (tone) {
+      case 'breaking': return 'Breaking news';
+      case 'developing': return 'Developing story';
+      case 'analysis': return 'Analysis reveals';
+      case 'opinion': return 'Opinion piece discusses';
+      case 'human-interest': return 'Human interest story';
+      default: return 'News report';
+    }
   }
 }
 
