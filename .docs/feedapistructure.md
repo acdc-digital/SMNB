@@ -1,35 +1,33 @@
 # API Structure Documentation: Reddit Live Feed Pipeline
 
 ## 📋 Table of Contents
+1. [Overview](#overview)
+2. [API Architecture](#api-architecture)
+3. [Data Flow Diagram](#data-flow-diagram)
+4. [Reddit API Route](#reddit-api-route)
+5. [Processing Pipeline](#processing-pipeline)
+6. [Order of Operations](#order-of-operations)
+7. [Component Integration](#component-integration)
+8. [Error Handling](#error-handling)
+9. [Performance Metrics](#performance-metrics)
+10. [Real-time Updates](#real-time-updates)
 
-1. [Overview](feedapistructure.md#overview)
-2. [API Architecture](feedapistructure.md#api-architecture)
-3. [Data Flow Diagram](feedapistructure.md#data-flow-diagram)
-4. [Reddit API Route](feedapistructure.md#reddit-api-route)
-5. [Processing Pipeline](feedapistructure.md#processing-pipeline)
-6. [Order of Operations](feedapistructure.md#order-of-operations)
-7. [Component Integration](feedapistructure.md#component-integration)
-8. [Error Handling](feedapistructure.md#error-handling)
-9. [Performance Metrics](feedapistructure.md#performance-metrics)
-10. [Real-time Updates](feedapistructure.md#real-time-updates)
-
-***
+---
 
 ## 🎯 Overview
 
 The SMNB dashboard features a sophisticated live feed system that fetches, processes, and displays Reddit content in real-time. The system uses a multi-layered architecture with intelligent content curation through multiple processing agents.
 
 ### Key Components
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **Reddit API Route** | Fetches posts from Reddit | `/app/api/reddit/route.ts` |
+| **Reddit Client** | Handles Reddit API communication | `/lib/reddit.ts` |
+| **Processing Pipeline** | Orchestrates content processing | `/lib/services/livefeed/enhancedProcessingPipeline.ts` |
+| **Feed UI** | Displays processed content | `/app/dashboard/feed/FeedSidebar.tsx` |
+| **Controls** | Manages feed settings | `/app/dashboard/studio/controls/Controls.tsx` |
 
-| Component               | Purpose                          | Location                                               |
-| ----------------------- | -------------------------------- | ------------------------------------------------------ |
-| **Reddit API Route**    | Fetches posts from Reddit        | `/app/api/reddit/route.ts`                             |
-| **Reddit Client**       | Handles Reddit API communication | `/lib/reddit.ts`                                       |
-| **Processing Pipeline** | Orchestrates content processing  | `/lib/services/livefeed/enhancedProcessingPipeline.ts` |
-| **Feed UI**             | Displays processed content       | `/app/dashboard/feed/FeedSidebar.tsx`                  |
-| **Controls**            | Manages feed settings            | `/app/dashboard/studio/controls/Controls.tsx`          |
-
-***
+---
 
 ## 🏗️ API Architecture
 
@@ -69,7 +67,7 @@ graph TB
     Publisher --> Display
 ```
 
-***
+---
 
 ## 📊 Data Flow Diagram
 
@@ -88,15 +86,15 @@ graph TB
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-***
+---
 
 ## 🔌 Reddit API Route
 
 ### **Route Endpoints**
 
-| Method   | Endpoint      | Purpose                              | Parameters                      |
-| -------- | ------------- | ------------------------------------ | ------------------------------- |
-| **GET**  | `/api/reddit` | Fetch posts from single subreddit    | `subreddit`, `sort`, `limit`    |
+| Method | Endpoint | Purpose | Parameters |
+|--------|----------|---------|------------|
+| **GET** | `/api/reddit` | Fetch posts from single subreddit | `subreddit`, `sort`, `limit` |
 | **POST** | `/api/reddit` | Batch fetch from multiple subreddits | `subreddits[]`, `sort`, `limit` |
 
 ### **GET Request Flow**
@@ -132,19 +130,19 @@ GET /api/reddit?subreddit=worldnews&sort=hot&limit=10
 6. Return aggregated response
 ```
 
-***
+---
 
 ## ⚙️ Processing Pipeline
 
 ### **Enhanced Processing Pipeline Architecture**
 
-| Stage             | Agent/Service    | Responsibility                     | Output            |
-| ----------------- | ---------------- | ---------------------------------- | ----------------- |
-| **1. Ingestion**  | Pipeline         | Fetch raw posts                    | Raw Reddit posts  |
-| **2. Enrichment** | EnrichmentAgent  | Add sentiment, categories, quality | Enhanced posts    |
-| **3. Scoring**    | ScoringAgent     | Calculate priority scores          | Scored posts      |
-| **4. Scheduling** | SchedulerService | Smart timing & diversity           | Scheduled posts   |
-| **5. Publishing** | PublisherService | Queue management                   | Live feed updates |
+| Stage | Agent/Service | Responsibility | Output |
+|-------|--------------|----------------|--------|
+| **1. Ingestion** | Pipeline | Fetch raw posts | Raw Reddit posts |
+| **2. Enrichment** | EnrichmentAgent | Add sentiment, categories, quality | Enhanced posts |
+| **3. Scoring** | ScoringAgent | Calculate priority scores | Scored posts |
+| **4. Scheduling** | SchedulerService | Smart timing & diversity | Scheduled posts |
+| **5. Publishing** | PublisherService | Queue management | Live feed updates |
 
 ### **Processing Status Flow**
 
@@ -154,7 +152,7 @@ GET /api/reddit?subreddit=worldnews&sort=hot&limit=10
   └─ Fresh ───┴─ +Metadata ─┴─ +Priority ─┴─ +Timing ────┴─ Live
 ```
 
-***
+---
 
 ## 📋 Order of Operations
 
@@ -183,22 +181,22 @@ sequenceDiagram
 
 ### **Detailed Step-by-Step Operations**
 
-| Step   | Component        | Operation                         | Data Transformation                |
-| ------ | ---------------- | --------------------------------- | ---------------------------------- |
-| **1**  | User             | Selects subreddits & clicks start | `["worldnews", "technology"]`      |
-| **2**  | Controls         | Builds API request                | `{subreddits: [...], sort: "hot"}` |
-| **3**  | API Route        | Validates parameters              | Ensures limit ≤ 25                 |
-| **4**  | Reddit Client    | Adds headers & auth               | `User-Agent`, rate limiting        |
-| **5**  | Reddit API       | Returns JSON data                 | Raw Reddit response                |
-| **6**  | API Route        | Maps to posts array               | `children.map(c => c.data)`        |
-| **7**  | Pipeline         | Receives posts batch              | Array of RedditPost objects        |
-| **8**  | EnrichmentAgent  | Adds metadata                     | +sentiment, +categories, +quality  |
-| **9**  | ScoringAgent     | Calculates priority               | +priority\_score (0-1)             |
-| **10** | SchedulerService | Determines timing                 | +scheduled\_time                   |
-| **11** | PublisherService | Queues for display                | Manages feed rate                  |
-| **12** | Feed UI          | Renders posts                     | Visual cards with metadata         |
+| Step | Component | Operation | Data Transformation |
+|------|-----------|-----------|-------------------|
+| **1** | User | Selects subreddits & clicks start | `["worldnews", "technology"]` |
+| **2** | Controls | Builds API request | `{subreddits: [...], sort: "hot"}` |
+| **3** | API Route | Validates parameters | Ensures limit ≤ 25 |
+| **4** | Reddit Client | Adds headers & auth | `User-Agent`, rate limiting |
+| **5** | Reddit API | Returns JSON data | Raw Reddit response |
+| **6** | API Route | Maps to posts array | `children.map(c => c.data)` |
+| **7** | Pipeline | Receives posts batch | Array of RedditPost objects |
+| **8** | EnrichmentAgent | Adds metadata | +sentiment, +categories, +quality |
+| **9** | ScoringAgent | Calculates priority | +priority_score (0-1) |
+| **10** | SchedulerService | Determines timing | +scheduled_time |
+| **11** | PublisherService | Queues for display | Manages feed rate |
+| **12** | Feed UI | Renders posts | Visual cards with metadata |
 
-***
+---
 
 ## 🔧 Component Integration
 
@@ -235,26 +233,26 @@ const FeedSidebar = () => {
 
 ### **Data Type Transformations**
 
-| Stage          | Input Type             | Output Type            | Key Changes                              |
-| -------------- | ---------------------- | ---------------------- | ---------------------------------------- |
-| **Reddit API** | Raw JSON               | `RedditPost[]`         | Basic post structure                     |
-| **Pipeline**   | `RedditPost[]`         | `EnhancedRedditPost[]` | +processing\_status, +fetch\_timestamp   |
-| **Enrichment** | `EnhancedRedditPost[]` | Enhanced               | +sentiment, +categories, +quality\_score |
-| **Scoring**    | Enhanced               | Scored                 | +priority\_score, +engagement\_score     |
-| **Store**      | Scored                 | `LiveFeedPost[]`       | +addedAt, +batchId, +isNew               |
+| Stage | Input Type | Output Type | Key Changes |
+|-------|------------|-------------|-------------|
+| **Reddit API** | Raw JSON | `RedditPost[]` | Basic post structure |
+| **Pipeline** | `RedditPost[]` | `EnhancedRedditPost[]` | +processing_status, +fetch_timestamp |
+| **Enrichment** | `EnhancedRedditPost[]` | Enhanced | +sentiment, +categories, +quality_score |
+| **Scoring** | Enhanced | Scored | +priority_score, +engagement_score |
+| **Store** | Scored | `LiveFeedPost[]` | +addedAt, +batchId, +isNew |
 
-***
+---
 
 ## 🛡️ Error Handling
 
 ### **Error Handling Chain**
 
-| Level        | Component     | Error Type              | Handling Strategy                |
-| ------------ | ------------- | ----------------------- | -------------------------------- |
-| **API**      | Route Handler | Network/Timeout         | Return 500 with error message    |
-| **Reddit**   | Client        | Rate Limiting (403/429) | Retry with backoff               |
-| **Pipeline** | Processing    | Enrichment Failure      | Log & continue with partial data |
-| **UI**       | Feed Display  | Missing Data            | Show fallback UI                 |
+| Level | Component | Error Type | Handling Strategy |
+|-------|-----------|------------|------------------|
+| **API** | Route Handler | Network/Timeout | Return 500 with error message |
+| **Reddit** | Client | Rate Limiting (403/429) | Retry with backoff |
+| **Pipeline** | Processing | Enrichment Failure | Log & continue with partial data |
+| **UI** | Feed Display | Missing Data | Show fallback UI |
 
 ### **Error Response Structure**
 
@@ -290,31 +288,31 @@ Reddit API Error → Pipeline continues → Partial data → UI shows available 
                           data               content              notification
 ```
 
-***
+---
 
 ## 📈 Performance Metrics
 
 ### **System Constraints**
 
-| Metric                 | Value      | Purpose               |
-| ---------------------- | ---------- | --------------------- |
-| **Max posts/request**  | 25         | Reddit API limit      |
-| **Fetch interval**     | 2 seconds  | Rate limiting         |
-| **Min post interval**  | 5 minutes  | Prevent feed flooding |
-| **Max posts/hour**     | 8          | User experience       |
-| **Processing timeout** | 30 seconds | Prevent hanging       |
+| Metric | Value | Purpose |
+|--------|-------|---------|
+| **Max posts/request** | 25 | Reddit API limit |
+| **Fetch interval** | 2 seconds | Rate limiting |
+| **Min post interval** | 5 minutes | Prevent feed flooding |
+| **Max posts/hour** | 8 | User experience |
+| **Processing timeout** | 30 seconds | Prevent hanging |
 
 ### **Processing Performance**
 
-| Stage          | Avg Time    | Concurrent           | Bottleneck           |
-| -------------- | ----------- | -------------------- | -------------------- |
-| **API Fetch**  | 1-3 seconds | 1 request            | Reddit rate limits   |
-| **Enrichment** | 100-500ms   | Batch processing     | AI analysis          |
-| **Scoring**    | 10-50ms     | Parallel computation | Algorithm complexity |
-| **Scheduling** | 5-10ms      | Queue operations     | Memory allocation    |
-| **Publishing** | 1-5ms       | UI updates           | React rendering      |
+| Stage | Avg Time | Concurrent | Bottleneck |
+|-------|----------|------------|-------------|
+| **API Fetch** | 1-3 seconds | 1 request | Reddit rate limits |
+| **Enrichment** | 100-500ms | Batch processing | AI analysis |
+| **Scoring** | 10-50ms | Parallel computation | Algorithm complexity |
+| **Scheduling** | 5-10ms | Queue operations | Memory allocation |
+| **Publishing** | 1-5ms | UI updates | React rendering |
 
-***
+---
 
 ## 🔄 Real-time Updates
 
@@ -332,11 +330,11 @@ Reddit API Error → Pipeline continues → Partial data → UI shows available 
 
 ### **State Management Flow**
 
-| Store                   | State                | Update Trigger     | UI Effect           |
-| ----------------------- | -------------------- | ------------------ | ------------------- |
-| **simpleLiveFeedStore** | `posts[]`            | New post published | Feed rerenders      |
-| **simpleLiveFeedStore** | `isLive`             | Start/Stop clicked | Controls update     |
-| **simpleLiveFeedStore** | `selectedSubreddits` | Subreddit toggled  | Fetch scope changes |
+| Store | State | Update Trigger | UI Effect |
+|-------|-------|---------------|-----------|
+| **simpleLiveFeedStore** | `posts[]` | New post published | Feed rerenders |
+| **simpleLiveFeedStore** | `isLive` | Start/Stop clicked | Controls update |
+| **simpleLiveFeedStore** | `selectedSubreddits` | Subreddit toggled | Fetch scope changes |
 
 ### **Update Mechanisms**
 
@@ -363,7 +361,7 @@ const publisherService = {
 };
 ```
 
-***
+---
 
 ## 🔄 Pipeline Configuration
 
@@ -401,7 +399,7 @@ interface PipelineStats {
 }
 ```
 
-***
+---
 
 ## 📊 Data Models
 
@@ -441,7 +439,7 @@ interface LiveFeedPost extends EnhancedRedditPost {
 }
 ```
 
-***
+---
 
 ## 🎯 Summary
 
@@ -457,35 +455,35 @@ The Reddit Live Feed API structure follows a clear pipeline pattern:
 
 This architecture ensures:
 
-* ✅ **Scalability**: Modular components can be enhanced independently
-* ✅ **Reliability**: Error handling at each layer
-* ✅ **Performance**: Batching and rate limiting
-* ✅ **User Experience**: Smooth, real-time updates
-* ✅ **Maintainability**: Clear separation of concerns
-* ✅ **Extensibility**: Easy to add new processing agents
-* ✅ **Monitoring**: Comprehensive stats and logging
+- ✅ **Scalability**: Modular components can be enhanced independently
+- ✅ **Reliability**: Error handling at each layer
+- ✅ **Performance**: Batching and rate limiting
+- ✅ **User Experience**: Smooth, real-time updates
+- ✅ **Maintainability**: Clear separation of concerns
+- ✅ **Extensibility**: Easy to add new processing agents
+- ✅ **Monitoring**: Comprehensive stats and logging
 
 ### **Key Design Patterns**
 
-| Pattern                  | Implementation                  | Benefit             |
-| ------------------------ | ------------------------------- | ------------------- |
-| **Pipeline**             | Sequential processing stages    | Clear data flow     |
-| **Agent-based**          | Independent processing services | Modular enhancement |
-| **Publisher-Subscriber** | Store updates trigger UI        | Reactive updates    |
-| **Circuit Breaker**      | Error isolation per component   | Fault tolerance     |
-| **Rate Limiting**        | Controlled API requests         | API compliance      |
+| Pattern | Implementation | Benefit |
+|---------|---------------|---------|
+| **Pipeline** | Sequential processing stages | Clear data flow |
+| **Agent-based** | Independent processing services | Modular enhancement |
+| **Publisher-Subscriber** | Store updates trigger UI | Reactive updates |
+| **Circuit Breaker** | Error isolation per component | Fault tolerance |
+| **Rate Limiting** | Controlled API requests | API compliance |
 
-***
+---
 
 ## 📚 Related Documentation
 
-* [Enhanced Processing Pipeline Details](processingPipeline.md)
-* [Reddit Client Implementation](redditClient.md)
-* [Feed Component Architecture](feedComponents.md)
-* [Convex Integration Guide](convexIntegration.md)
-* [Error Handling Strategies](errorHandling.md)
+- [Enhanced Processing Pipeline Details](./processingPipeline.md)
+- [Reddit Client Implementation](./redditClient.md)
+- [Feed Component Architecture](./feedComponents.md)
+- [Convex Integration Guide](./convexIntegration.md)
+- [Error Handling Strategies](./errorHandling.md)
 
-***
+---
 
 ## 🔧 Development Notes
 
@@ -513,8 +511,8 @@ const stats = pipeline.getStats();
 console.log('Pipeline performance:', stats);
 ```
 
-***
+---
 
-_Last Updated: September 1, 2025_\
-&#xNAN;_&#x56;ersion: 2.0.0_\
-&#xNAN;_&#x43;ontributors: SMNB Development Team_
+*Last Updated: September 1, 2025*  
+*Version: 2.0.0*  
+*Contributors: SMNB Development Team*
