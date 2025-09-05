@@ -12,6 +12,7 @@
 import { EventEmitter } from 'events';
 import { RedditPost } from '@/lib/reddit';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
+import { tokenCountingService } from '../tokenCountingService';
 
 export interface ProducerConfig {
   searchInterval: number; // ms between search operations
@@ -404,5 +405,72 @@ export class ProducerAgentService extends EventEmitter {
       return 'medium';
     }
     return 'low';
+  }
+
+  /**
+   * Future: LLM-based content analysis with proper token tracking
+   * This method shows how to instrument LLM calls when added to Producer
+   */
+  private async analyzeFutureContentWithLLM(post: EnhancedRedditPost): Promise<any> {
+    const startTime = Date.now();
+    
+    // This is a placeholder for future LLM-based analysis
+    // When implemented, it would:
+    // 1. Count input tokens
+    // 2. Make LLM call with tools if needed
+    // 3. Track tool usage
+    // 4. Record complete token usage
+    
+    try {
+      // Example of how token tracking would work:
+      /*
+      const inputTokens = await tokenCountingService.countTokensWithTools({
+        model: 'claude-3-5-haiku-20241022',
+        system: 'You are a content analysis assistant.',
+        messages: [{ role: 'user', content: post.title + ' ' + post.selftext }],
+        tools: [{ name: 'sentiment_analyzer', description: '...' }]
+      });
+      
+      // Make LLM call...
+      const result = await llmService.generateWithTools(...);
+      
+      // Record usage
+      tokenCountingService.createAgentUsageRecord(
+        'producer',
+        'analyze',
+        'claude-3-5-haiku-20241022',
+        inputTokens.inputTokens,
+        estimatedOutputTokens,
+        {
+          duration: Date.now() - startTime,
+          success: true,
+          toolsUsed: ['sentiment_analyzer'],
+          toolDefinitionsTokens: inputTokens.toolDefinitionsTokens,
+          toolResultsTokens: actualToolResultsTokens
+        }
+      );
+      */
+      
+      // For now, just return a placeholder
+      console.log(`🏭 Producer Agent: Future LLM analysis placeholder for "${post.title.substring(0, 50)}..."`);
+      return { analyzed: false, placeholder: true };
+      
+    } catch (error) {
+      // Record failed usage
+      tokenCountingService.createAgentUsageRecord(
+        'producer',
+        'analyze',
+        'claude-3-5-haiku-20241022',
+        0,
+        0,
+        {
+          duration: Date.now() - startTime,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      );
+      
+      throw error;
+    }
   }
 }

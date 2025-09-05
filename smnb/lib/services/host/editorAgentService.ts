@@ -14,6 +14,7 @@ import { MockLLMService } from '../host/mockLLMService';
 import convex from '@/lib/convex';
 import { api } from '@/convex/_generated/api';
 import { ClaudeLLMService } from '../host/claudeLLMService';
+import { tokenCountingService } from '../tokenCountingService';
 
 export interface EditorAgentConfig {
   updateFrequency: number; // ms between processing checks
@@ -362,6 +363,20 @@ export class EditorAgentService extends EventEmitter {
     const prompt = this.buildContentPrompt(posts);
     let currentText = '';
     let wordCount = 0;
+    const startTime = Date.now();
+    
+    // Count input tokens before starting generation
+    let inputTokens = 0;
+    try {
+      inputTokens = await tokenCountingService.countInputTokens({
+        model: 'claude-3-5-haiku-20241022',
+        system: 'You are a professional content editor creating engaging article content.',
+        messages: [{ role: 'user', content: prompt }]
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to count input tokens for editor:', error);
+      inputTokens = tokenCountingService.estimateTokens(prompt);
+    }
     
     try {
       await this.llmService.generateStream(
@@ -391,10 +406,43 @@ export class EditorAgentService extends EventEmitter {
         },
         // onComplete callback
         (fullText: string) => {
+          // Record token usage for successful completion
+          const outputTokens = tokenCountingService.estimateOutputTokens(fullText);
+          const duration = Date.now() - startTime;
+          
+          tokenCountingService.createAgentUsageRecord(
+            'editor',
+            'stream',
+            'claude-3-5-haiku-20241022',
+            inputTokens,
+            outputTokens,
+            { 
+              duration,
+              success: true
+            }
+          );
+          
+          console.log(`📝 Editor Agent: Generated ${fullText.length} characters (${inputTokens}→${outputTokens} tokens, ${duration}ms)`);
           this.completeContent(content, fullText);
         },
         // onError callback
         (error: Error) => {
+          // Record failed token usage
+          const duration = Date.now() - startTime;
+          
+          tokenCountingService.createAgentUsageRecord(
+            'editor',
+            'stream',
+            'claude-3-5-haiku-20241022',
+            inputTokens,
+            0, // No output tokens on error
+            { 
+              duration,
+              success: false,
+              error: error.message
+            }
+          );
+          
           console.error(`❌ Content streaming failed for ${content.id}:`, error);
           this.emit('content:error', content.id, error);
           this.state.currentContent = null;
@@ -402,6 +450,22 @@ export class EditorAgentService extends EventEmitter {
       );
       
     } catch (error) {
+      // Record failed token usage for initial error
+      const duration = Date.now() - startTime;
+      
+      tokenCountingService.createAgentUsageRecord(
+        'editor',
+        'stream',
+        'claude-3-5-haiku-20241022',
+        inputTokens,
+        0,
+        { 
+          duration,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      );
+      
       console.error(`❌ Error starting content streaming for ${content.id}:`, error);
       this.emit('content:error', content.id, error as Error);
       this.state.currentContent = null;

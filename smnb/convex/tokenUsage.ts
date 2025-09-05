@@ -27,6 +27,11 @@ export const recordTokenUsage = mutation({
     session_id: v.optional(v.string()),
     source_post_id: v.optional(v.string()),
     metadata: v.optional(v.string()),
+    // Enhanced tool tracking fields
+    tools_used: v.optional(v.string()), // Comma-separated tool names
+    tool_definitions_tokens: v.optional(v.number()),
+    tool_results_tokens: v.optional(v.number()),
+    has_tools: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("token_usage", args);
@@ -99,6 +104,11 @@ export const getAggregatedStats = query({
       tokens_by_type: {} as Record<string, number>,
       cost_by_type: {} as Record<string, number>,
       hourly_usage: [] as Array<{ hour: string; requests: number; tokens: number; cost: number }>,
+      // Enhanced tool analytics
+      total_tool_requests: results.filter(r => r.has_tools).length,
+      total_tool_definitions_tokens: results.reduce((sum, r) => sum + (r.tool_definitions_tokens || 0), 0),
+      total_tool_results_tokens: results.reduce((sum, r) => sum + (r.tool_results_tokens || 0), 0),
+      tool_usage_by_type: {} as Record<string, number>,
     };
     
     if (stats.total_requests > 0) {
@@ -121,6 +131,16 @@ export const getAggregatedStats = query({
     // Group by action
     results.forEach(record => {
       stats.requests_by_action[record.action] = (stats.requests_by_action[record.action] || 0) + 1;
+    });
+    
+    // Group by tool usage
+    results.forEach(record => {
+      if (record.tools_used) {
+        const tools = record.tools_used.split(',').filter(tool => tool.trim());
+        tools.forEach(tool => {
+          stats.tool_usage_by_type[tool.trim()] = (stats.tool_usage_by_type[tool.trim()] || 0) + 1;
+        });
+      }
     });
     
     // Generate hourly usage (last 24 hours)

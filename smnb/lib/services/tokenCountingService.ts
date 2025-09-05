@@ -31,6 +31,11 @@ export interface TokenUsageMetrics {
   duration?: number; // milliseconds
   success: boolean;
   error?: string;
+  // Enhanced tool tracking
+  toolsUsed?: string[]; // Names of tools used in request
+  toolDefinitionsTokens?: number; // Tokens consumed by tool definitions
+  toolResultsTokens?: number; // Tokens consumed by tool results
+  hasTools?: boolean; // Whether this request used tools
 }
 
 export interface TokenUsageStats {
@@ -43,6 +48,12 @@ export interface TokenUsageStats {
   requestsByType: Record<string, number>;
   tokensByModel: Record<string, number>;
   hourlyUsage: Array<{ hour: string; tokens: number; cost: number }>;
+  // Enhanced tool analytics
+  totalToolRequests: number;
+  totalToolDefinitionsTokens: number;
+  totalToolResultsTokens: number;
+  requestsByAgent: Record<string, number>; // Track by agent type
+  toolUsageByType: Record<string, number>; // Track tool usage frequency
 }
 
 export interface ModelPricing {
@@ -110,13 +121,99 @@ export class TokenCountingService {
       }
 
       const data: TokenCountResponse = await response.json();
-      console.log(`🔢 Input tokens counted: ${data.input_tokens}`);
+      console.log(`🔢 Input tokens counted: ${data.input_tokens}${request.tools ? ` (with ${request.tools.length} tools)` : ''}`);
       
       return data.input_tokens;
     } catch (error) {
       console.error('❌ Error counting input tokens:', error);
       return this.estimateTokens(this.extractTextFromRequest(request));
     }
+  }
+
+  /**
+   * Count tokens including tool definitions and estimate tool overhead
+   */
+  async countTokensWithTools(request: TokenCountRequest): Promise<{
+    inputTokens: number;
+    toolDefinitionsTokens: number;
+    estimatedToolResultsTokens: number;
+  }> {
+    try {
+      console.log(`🛠️ Counting tokens with tool analysis for ${request.model}...`);
+      
+      // Count total input tokens (including tools)
+      const totalInputTokens = await this.countInputTokens(request);
+      
+      // Estimate tool definitions tokens
+      let toolDefinitionsTokens = 0;
+      let estimatedToolResultsTokens = 0;
+      
+      if (request.tools && request.tools.length > 0) {
+        // Rough estimation for tool definitions (200 tokens per tool on average)
+        toolDefinitionsTokens = request.tools.length * 200;
+        
+        // Estimate potential tool results (300 tokens per tool that might be called)
+        estimatedToolResultsTokens = request.tools.length * 300;
+        
+        console.log(`🛠️ Tool analysis: ${request.tools.length} tools, ~${toolDefinitionsTokens} definition tokens, ~${estimatedToolResultsTokens} potential result tokens`);
+      }
+      
+      return {
+        inputTokens: totalInputTokens,
+        toolDefinitionsTokens,
+        estimatedToolResultsTokens
+      };
+      
+    } catch (error) {
+      console.error('❌ Error counting tokens with tools:', error);
+      
+      // Fallback to basic estimation
+      const baseTokens = this.estimateTokens(this.extractTextFromRequest(request));
+      const toolCount = request.tools?.length || 0;
+      
+      return {
+        inputTokens: baseTokens,
+        toolDefinitionsTokens: toolCount * 200,
+        estimatedToolResultsTokens: toolCount * 300
+      };
+    }
+  }
+
+  /**
+   * Create a comprehensive token usage record for agent services
+   */
+  createAgentUsageRecord(
+    agentType: 'host' | 'producer' | 'editor',
+    action: 'generate' | 'stream' | 'analyze' | 'test',
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+    options?: {
+      duration?: number;
+      success?: boolean;
+      error?: string;
+      toolsUsed?: string[];
+      toolDefinitionsTokens?: number;
+      toolResultsTokens?: number;
+    }
+  ): TokenUsageMetrics {
+    const requestId = `${agentType}-${action}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return this.recordUsage({
+      requestId,
+      model,
+      action,
+      inputTokens,
+      outputTokens,
+      requestType: agentType,
+      duration: options?.duration,
+      success: options?.success ?? true,
+      error: options?.error,
+      toolsUsed: options?.toolsUsed,
+      toolDefinitionsTokens: options?.toolDefinitionsTokens,
+      toolResultsTokens: options?.toolResultsTokens,
+      hasTools: (options?.toolsUsed?.length || 0) > 0
+    });
   }
 
   /**
@@ -150,7 +247,7 @@ export class TokenCountingService {
     const completeMetrics: TokenUsageMetrics = {
       ...metrics,
       timestamp: new Date(),
-      totalTokens: metrics.inputTokens + metrics.outputTokens,
+      totalTokens: metrics.inputTokens + metrics.outputTokens + (metrics.toolDefinitionsTokens || 0) + (metrics.toolResultsTokens || 0),
       estimatedCost: this.calculateCost(metrics.model, metrics.inputTokens, metrics.outputTokens)
     };
 
@@ -168,7 +265,8 @@ export class TokenCountingService {
       });
     }
 
-    console.log(`💰 Token usage recorded: ${completeMetrics.totalTokens} tokens, $${completeMetrics.estimatedCost.toFixed(4)}`);
+    const toolInfo = metrics.hasTools ? ` (with ${metrics.toolsUsed?.length || 0} tools)` : '';
+    console.log(`💰 Token usage recorded: ${completeMetrics.totalTokens} tokens, $${completeMetrics.estimatedCost.toFixed(4)}${toolInfo}`);
     
     return completeMetrics;
   }
@@ -193,9 +291,15 @@ export class TokenCountingService {
         duration: metrics.duration,
         success: metrics.success,
         error_message: metrics.error,
+        // Enhanced tool metadata
+        tools_used: metrics.toolsUsed ? metrics.toolsUsed.join(',') : undefined,
+        tool_definitions_tokens: metrics.toolDefinitionsTokens,
+        tool_results_tokens: metrics.toolResultsTokens,
+        has_tools: metrics.hasTools || false,
       });
       
-      console.log('📊 Token usage stored in Convex database');
+      const toolInfo = metrics.hasTools ? ` with tools: ${metrics.toolsUsed?.join(', ')}` : '';
+      console.log(`📊 Token usage stored in Convex database${toolInfo}`);
     } catch (error) {
       console.error('❌ Failed to store token usage in Convex:', error);
     }
@@ -223,7 +327,13 @@ export class TokenCountingService {
         averageTokensPerRequest: 0,
         requestsByType: {},
         tokensByModel: {},
-        hourlyUsage: []
+        hourlyUsage: [],
+        // Enhanced tool analytics
+        totalToolRequests: 0,
+        totalToolDefinitionsTokens: 0,
+        totalToolResultsTokens: 0,
+        requestsByAgent: {},
+        toolUsageByType: {}
       };
     }
 
@@ -236,7 +346,13 @@ export class TokenCountingService {
       averageTokensPerRequest: 0,
       requestsByType: {},
       tokensByModel: {},
-      hourlyUsage: []
+      hourlyUsage: [],
+      // Enhanced tool analytics
+      totalToolRequests: this.usageHistory.filter(m => m.hasTools).length,
+      totalToolDefinitionsTokens: this.usageHistory.reduce((sum, m) => sum + (m.toolDefinitionsTokens || 0), 0),
+      totalToolResultsTokens: this.usageHistory.reduce((sum, m) => sum + (m.toolResultsTokens || 0), 0),
+      requestsByAgent: {},
+      toolUsageByType: {}
     };
 
     stats.averageTokensPerRequest = stats.totalTokens / stats.totalRequests;
@@ -244,11 +360,22 @@ export class TokenCountingService {
     // Count by request type
     this.usageHistory.forEach(m => {
       stats.requestsByType[m.requestType] = (stats.requestsByType[m.requestType] || 0) + 1;
+      // Also track by agent for better breakdown
+      stats.requestsByAgent[m.requestType] = (stats.requestsByAgent[m.requestType] || 0) + 1;
     });
 
     // Count by model
     this.usageHistory.forEach(m => {
       stats.tokensByModel[m.model] = (stats.tokensByModel[m.model] || 0) + m.totalTokens;
+    });
+
+    // Count tool usage
+    this.usageHistory.forEach(m => {
+      if (m.toolsUsed) {
+        m.toolsUsed.forEach(tool => {
+          stats.toolUsageByType[tool] = (stats.toolUsageByType[tool] || 0) + 1;
+        });
+      }
     });
 
     // Generate hourly usage for last 24 hours
