@@ -102,31 +102,70 @@ export class EnhancedProcessingPipeline {
   }
 
   /**
-   * Data ingestion continues to fetch new posts
+   * Data ingestion continues to fetch new posts with graceful error handling
    */
   private async startDataIngestion(
     onError: (error: string | null) => void,
     onLoading: (loading: boolean) => void,
     config: PipelineConfig
   ) {
+    let consecutiveErrors = 0;
+    let backoffMultiplier = 1;
+    
     const ingestNewPosts = async () => {
       if (!this.isRunning) return;
 
       try {
         onLoading(true);
-        onError(null);
+        
+        // Clear any previous error messages when starting a new attempt
+        if (consecutiveErrors === 0) {
+          onError(null);
+        }
 
-        // Fetch new posts (keep our existing fetch logic)
+        // Fetch new posts with enhanced error handling
         const newRawPosts = await this.fetchNewPosts(config);
         
         if (newRawPosts.length > 0) {
           console.log(`📥 Pipeline: Ingested ${newRawPosts.length} new raw posts`);
           this.addRawPosts(newRawPosts);
+          
+          // Reset error tracking on success
+          consecutiveErrors = 0;
+          backoffMultiplier = 1;
+          onError(null);
+        } else {
+          // No posts returned - this is normal and shouldn't be treated as an error
+          console.log(`📭 Pipeline: No new posts available from Reddit`);
         }
 
       } catch (error) {
-        console.error('❌ Data ingestion error:', error);
-        onError(error instanceof Error ? error.message : 'Data ingestion failed');
+        consecutiveErrors++;
+        console.error(`❌ Data ingestion error (attempt ${consecutiveErrors}):`, error);
+        
+        // Handle different types of errors gracefully
+        const errorMessage = error instanceof Error ? error.message : 'Data ingestion failed';
+        
+        if (errorMessage.includes('Circuit breaker') || errorMessage.includes('503')) {
+          // Circuit breaker is open - show user-friendly message
+          onError('Reddit is temporarily slowing down requests. Feed will resume automatically.');
+          backoffMultiplier = Math.min(backoffMultiplier * 2, 8); // Cap at 8x backoff
+        } else if (errorMessage.includes('Rate limited') || errorMessage.includes('429')) {
+          // Rate limited - show helpful message
+          onError('Respecting Reddit rate limits. Feed continues automatically with smart timing.');
+          backoffMultiplier = Math.min(backoffMultiplier * 1.5, 4); // Cap at 4x backoff
+        } else if (errorMessage.includes('respect Reddit') || errorMessage.includes('slowing down')) {
+          // User-friendly messages from API responses
+          onError(errorMessage);
+          backoffMultiplier = Math.min(backoffMultiplier * 1.2, 3);
+        } else if (consecutiveErrors >= 3) {
+          // Multiple consecutive errors - show generic message
+          onError('Temporary connection issues. Feed will resume automatically.');
+          backoffMultiplier = Math.min(backoffMultiplier * 2, 6); // Cap at 6x backoff
+        } else {
+          // First few errors - don't show error to user, just log
+          console.log('📡 Temporary connection issue, retrying automatically...');
+        }
       } finally {
         onLoading(false);
       }
@@ -135,13 +174,25 @@ export class EnhancedProcessingPipeline {
     // Initial fetch
     await ingestNewPosts();
 
-    // Continue fetching new posts every 30 seconds
-    const ingestionInterval = setInterval(ingestNewPosts, 30000);
+    // Continue fetching new posts with adaptive interval based on errors
+    const scheduleNextIngestion = () => {
+      if (!this.isRunning) return;
+      
+      // Base interval is 30 seconds, but increase with backoff on errors
+      const interval = 30000 * backoffMultiplier;
+      console.log(`⏱️ Next data ingestion scheduled in ${interval / 1000} seconds`);
+      
+      setTimeout(async () => {
+        await ingestNewPosts();
+        scheduleNextIngestion();
+      }, interval);
+    };
+
+    scheduleNextIngestion();
 
     // Clean up on stop
     const originalStop = this.stop.bind(this);
     this.stop = () => {
-      clearInterval(ingestionInterval);
       originalStop();
     };
   }
@@ -258,7 +309,7 @@ export class EnhancedProcessingPipeline {
   }
 
   /**
-   * Fetch new posts using existing logic but with enhanced metadata
+   * Fetch new posts using existing logic but with enhanced metadata and retry logic
    */
   private async fetchNewPosts(config: PipelineConfig): Promise<EnhancedRedditPost[]> {
     // Use one subreddit at a time for variety (keeping existing rotation logic)
@@ -266,67 +317,179 @@ export class EnhancedProcessingPipeline {
     const sortMethods = ['new', 'rising', 'hot'];
     const sort = sortMethods[Math.floor(Math.random() * sortMethods.length)];
 
-    try {
-      const response = await fetch(`/api/reddit?subreddit=${subreddit}&limit=10&sort=${sort}`);
-      if (!response.ok) {
-        // Check if circuit breaker is open (503 status)
-        if (response.status === 503) {
-          console.log(`🚫 Circuit breaker is open - pausing ingestion for Reddit API recovery`);
-          // Return empty array and let the pipeline wait longer before next attempt
+    return await this.fetchWithRetry(subreddit, sort, config, 2); // Allow 2 retries
+  }
+
+  /**
+   * Fetch posts with intelligent retry logic and graceful error handling
+   */
+  private async fetchWithRetry(
+    subreddit: string, 
+    sort: string, 
+    config: PipelineConfig, 
+    maxRetries: number = 2
+  ): Promise<EnhancedRedditPost[]> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(`/api/reddit?subreddit=${subreddit}&limit=10&sort=${sort}`, {
+          // Add timeout to prevent hanging requests
+          signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+
+        if (!response.ok) {
+          // Check if circuit breaker is open (503 status)
+          if (response.status === 503) {
+            const data = await response.json().catch(() => ({}));
+            if (data.circuitBreakerOpen) {
+              console.log(`🚫 Circuit breaker is open - Reddit API recovery in progress`);
+              // Show user-friendly message if available
+              if (data.userMessage && attempt === maxRetries) {
+                throw new Error(data.userMessage);
+              }
+              // Don't retry when circuit breaker is open, just wait for next cycle
+              return [];
+            }
+          }
+          
+          // Handle rate limiting gracefully
+          if (response.status === 429) {
+            const data = await response.json().catch(() => ({}));
+            if (data.rateLimited) {
+              console.log(`⏳ Rate limited for r/${subreddit} - backing off gracefully`);
+              
+              // If this is the final attempt, use user-friendly message
+              if (attempt === maxRetries && data.userMessage) {
+                throw new Error(data.userMessage);
+              }
+              
+              // If this is not the last attempt, wait before retrying
+              if (attempt < maxRetries) {
+                // Use retryAfter from response if available, otherwise fallback
+                const retryAfter = data.retryAfter || (5 * (attempt + 1));
+                const delay = Math.min(retryAfter * 1000, 15000); // Cap at 15s
+                console.log(`⌛ Waiting ${delay / 1000}s before retry attempt ${attempt + 1}/${maxRetries}`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+              }
+              
+              // Last attempt - return empty but don't throw error
+              return [];
+            }
+          }
+          
+          // Handle blocked access
+          if (response.status === 403) {
+            console.log(`🚫 Access blocked for r/${subreddit} - may be private or restricted`);
+            return [];
+          }
+          
+          // For other errors, log and return empty on final attempt
+          if (attempt === maxRetries) {
+            console.log(`⚠️ Final attempt failed for r/${subreddit}: ${response.status} ${response.statusText}`);
+            return [];
+          }
+          
+          // For non-final attempts, wait and retry
+          const delay = 2000 * (attempt + 1); // Progressive delay: 2s, 4s
+          console.log(`🔄 Retrying r/${subreddit} in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        const data = await response.json();
+        console.log(`📦 API response for r/${subreddit} (${sort}):`, {
+          success: data.success,
+          postCount: data.posts?.length || 0,
+          attempt: attempt + 1
+        });
+
+        if (!data.success) {
+          // Handle API-level errors
+          if (data.error) {
+            console.log(`📭 API message for r/${subreddit}: ${data.error}`);
+            
+            // If it's a rate limit or circuit breaker error, don't retry
+            if (data.error.includes('rate limit') || data.error.includes('circuit breaker')) {
+              return [];
+            }
+          }
+          
+          // For other API errors, retry if not final attempt
+          if (attempt < maxRetries) {
+            const delay = 3000 * (attempt + 1);
+            console.log(`🔄 API error for r/${subreddit}, retrying in ${delay / 1000}s`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          return [];
+        }
+
+        if (!Array.isArray(data.posts)) {
+          console.log(`📭 No posts array returned for r/${subreddit}`);
+          return [];
+        }
+
+        // Transform to enhanced posts with initial metadata
+        const enhancedPosts: EnhancedRedditPost[] = data.posts.map((postData: Record<string, unknown>) => ({
+          id: postData.id as string,
+          title: postData.title as string,
+          author: postData.author as string,
+          subreddit: postData.subreddit as string,
+          url: postData.url as string,
+          permalink: `https://reddit.com${postData.permalink}`,
+          score: postData.score as number,
+          num_comments: postData.num_comments as number,
+          created_utc: postData.created_utc as number,
+          thumbnail: postData.thumbnail as string,
+          selftext: (postData.selftext as string) || '',
+          is_video: (postData.is_video as boolean) || false,
+          domain: postData.domain as string,
+          upvote_ratio: postData.upvote_ratio as number,
+          over_18: postData.over_18 as boolean,
+          source: 'reddit' as const,
+
+          // Enhanced metadata
+          fetch_timestamp: Date.now(),
+          engagement_score: 0, // Will be calculated by enrichment
+          processing_status: 'raw',
+        }));
+
+        // Filter by content mode and duplicates
+        const filteredPosts = this.filterNewPosts(enhancedPosts, config.contentMode);
+        
+        if (attempt > 0) {
+          console.log(`✅ Successfully fetched r/${subreddit} on attempt ${attempt + 1}`);
+        }
+        
+        return filteredPosts;
+
+      } catch (error) {
+        // Handle network errors, timeouts, etc.
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        if (errorMessage.includes('timeout') || errorMessage.includes('TimeoutError')) {
+          console.log(`⏰ Timeout fetching r/${subreddit} (attempt ${attempt + 1})`);
+        } else if (errorMessage.includes('AbortError')) {
+          console.log(`🛑 Request aborted for r/${subreddit} (attempt ${attempt + 1})`);
+        } else {
+          console.log(`🌐 Network error for r/${subreddit} (attempt ${attempt + 1}): ${errorMessage}`);
+        }
+        
+        // If this is the final attempt, return empty array
+        if (attempt === maxRetries) {
+          console.log(`❌ All attempts failed for r/${subreddit}, continuing with empty result`);
           return [];
         }
         
-        const errorText = `Failed to fetch ${subreddit}: ${response.statusText}`;
-        console.warn(`⚠️ ${errorText}`);
-        
-        // Don't throw error, just return empty array to continue processing other subreddits
-        return [];
+        // Wait before retrying
+        const delay = 3000 * (attempt + 1); // 3s, 6s
+        console.log(`🔄 Retrying r/${subreddit} in ${delay / 1000}s due to network error`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      const data = await response.json();
-      console.log(`📦 API response for r/${subreddit} (${sort}):`, {
-        success: data.success,
-        postCount: data.posts?.length || 0
-      });
-
-      if (!data.success || !Array.isArray(data.posts)) {
-        console.warn(`⚠️ API error for r/${subreddit}:`, data.error || 'No posts returned');
-        return [];
-      }
-
-      // Transform to enhanced posts with initial metadata
-      const enhancedPosts: EnhancedRedditPost[] = data.posts.map((postData: Record<string, unknown>) => ({
-        id: postData.id as string,
-        title: postData.title as string,
-        author: postData.author as string,
-        subreddit: postData.subreddit as string,
-        url: postData.url as string,
-        permalink: `https://reddit.com${postData.permalink}`,
-        score: postData.score as number,
-        num_comments: postData.num_comments as number,
-        created_utc: postData.created_utc as number,
-        thumbnail: postData.thumbnail as string,
-        selftext: (postData.selftext as string) || '',
-        is_video: (postData.is_video as boolean) || false,
-        domain: postData.domain as string,
-        upvote_ratio: postData.upvote_ratio as number,
-        over_18: postData.over_18 as boolean,
-        source: 'reddit' as const,
-
-        // Enhanced metadata
-        fetch_timestamp: Date.now(),
-        engagement_score: 0, // Will be calculated by enrichment
-        processing_status: 'raw',
-      }));
-
-      // Filter by content mode and duplicates
-      return this.filterNewPosts(enhancedPosts, config.contentMode);
-
-    } catch (error) {
-      console.warn(`⚠️ Failed to fetch from ${subreddit}:`, error instanceof Error ? error.message : error);
-      // Return empty array instead of throwing to prevent stopping the entire feed
-      return [];
     }
+    
+    return [];
   }
 
   /**
@@ -426,6 +589,24 @@ export class EnhancedProcessingPipeline {
    */
   getStats(): PipelineStats {
     return this.stats;
+  }
+
+  /**
+   * Get current pipeline health and error state
+   */
+  getHealthStatus(): {
+    isRunning: boolean;
+    totalPosts: number;
+    lastIngestionTime: number;
+    errorState: 'healthy' | 'rate_limited' | 'circuit_breaker' | 'connection_issues';
+    nextIngestionIn?: number;
+  } {
+    return {
+      isRunning: this.isRunning,
+      totalPosts: this.posts.length,
+      lastIngestionTime: this.stats.lastUpdate,
+      errorState: 'healthy', // This could be enhanced to track actual state
+    };
   }
 
   /**

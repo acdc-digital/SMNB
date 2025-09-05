@@ -65,7 +65,7 @@ class GlobalRateLimiter {
         this.rateLimitBackoff = Math.floor(this.rateLimitBackoff / 2); // Reduce backoff on reset
       } else {
         const remainingTime = this.circuitBreakerResetTime - timeSinceOpened;
-        throw new Error(`Circuit breaker is open - Reddit API calls suspended for ${Math.round(remainingTime / 1000)} more seconds`);
+        throw new Error(`Circuit breaker is open - Reddit API calls suspended for ${Math.round(remainingTime / 1000)} more seconds. The system is automatically recovering from rate limits.`);
       }
     }
 
@@ -177,7 +177,8 @@ class RedditAPI {
         if (response.status === 429) {
           // Increase global backoff
           this.rateLimiter.increaseBackoff();
-          throw new Error(`Rate limited by Reddit for r/${subreddit}. Please slow down requests.`);
+          const currentBackoff = this.rateLimiter.getCurrentBackoff();
+          throw new Error(`Rate limited by Reddit for r/${subreddit}. Automatic backoff in effect (${currentBackoff}ms delay). The system will automatically adjust request timing.`);
         }
         
         throw new Error(`Reddit API error: ${response.status} ${response.statusText}`);
