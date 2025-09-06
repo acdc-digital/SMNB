@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { TokenCounter } from "@/components/ui/TokenCounter";
 import ActivityBar from "./activityBar/ActivityBar";
+import { Fingerprint } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,14 +16,14 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex flex-col h-screen font-sans overflow-hidden">
+    <div className="flex flex-col h-screen font-sf text-xs overflow-hidden">
       {/* Top thin border / bar */}
-      <div className="w-full h-6 flex items-center gap-3 px-4 text-xs tracking-wide uppercase text-foreground/60 border-b border-black/10 dark:border-white/10 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40">
-        <span className="font-medium">SMNB Dashboard</span>
-        <span className="hidden sm:inline text-foreground/40">Inspired by VS Code layout</span>
+      <div className="w-full h-8 flex items-center gap-3 px-3 text-foreground/60 border-b border-black/10 dark:border-white/10 bg-[#181818]">
+        <Fingerprint className="h-4 w-4 text-[#858585] border-1 border-[#858585] rounded-xs p-0.5" />
+        <span className="text-[#858585] font-medium text-xs">SMNB Terminal</span>
+        <div className="w-2 h-2 rounded-full bg-green-600"></div>
         <div className="ml-auto flex items-center gap-4">
           <ThemeToggle />
-          <Link href="/" className="hover:underline">Home</Link>
         </div>
       </div>
 
@@ -38,15 +39,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Footer */}
-      <footer className="h-10 shrink-0 flex items-center justify-between px-4 text-xs border-t border-black/10 dark:border-white/10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/40">
-        <div className="flex items-center gap-4 text-foreground/60">
-          <span>Status: Ready</span>
+      <footer className="h-[26px] shrink-0 flex items-center justify-between px-4 text-xs border-t border-black/10 dark:border-white/10 bg-[#181818]">
+        <div className="flex items-center gap-2 text-foreground/90">
+          <span>© built by ACDC.digital</span>
+        </div>
+        <div className="flex items-center gap-4 text-foreground/50">
+          <span>Status: <span className="text-green-500">Ready</span></span>
           <span className="hidden sm:inline">v0.1.0</span>
           <TokenCounter className="hidden md:flex" />
-        </div>
-        <div className="flex items-center gap-3 text-foreground/50">
-          <a href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</a>
-          <a href="https://nextjs.org" target="_blank" rel="noreferrer noopener" className="hover:text-foreground transition-colors">Next.js</a>
         </div>
       </footer>
     </div>

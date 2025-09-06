@@ -10,9 +10,10 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
 import { HostNarration } from '@/lib/types/hostAgent';
+import { Response } from '@/components/ai/response';
 import styles from './WaterfallNarration.module.css';
 
 interface WaterfallNarrationProps {
@@ -26,12 +27,21 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
   isActive = true,
   className = ''
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
   // Get streaming state from the store
   const { 
     isStreaming, 
     streamingText, 
     currentNarration
   } = useHostAgentStore();
+  
+  // Auto-scroll to bottom when new content appears
+  useEffect(() => {
+    if (scrollRef.current && streamingText) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [streamingText]);
   
   const getToneEmoji = (tone: HostNarration['tone']): string => {
     switch (tone) {
@@ -54,42 +64,22 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
   };
 
   return (
-    <div className={`flex flex-col h-full p-6 ${className}`}>
+    <div className={`flex flex-col h-full p-0 ${className}`}>
       {/* Scrollable content area - now takes full space */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
         {/* Current streaming text */}
-        {isStreaming && isActive && (
-          <div className={`${styles.currentNarration} bg-blue-500/10 border-blue-500/50 rounded-lg border-2 p-4 mb-6 shadow-lg`}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">LIVE</span>
-              </div>
-              <span className="text-lg">{getToneEmoji(currentNarration?.tone || 'analysis')}</span>
-              <span className="text-lg">{getPriorityEmoji(currentNarration?.priority || 'low')}</span>
-              <span className="text-sm text-muted-foreground">
-                {currentNarration?.tone} • {currentNarration?.priority} priority
-              </span>
-            </div>
+        {isStreaming && isActive && streamingText && (
+          <div className={`${styles.currentNarration} bg-blue-500/10 rounded-lg mb-6`}>
             <div className="text-foreground leading-relaxed text-base">
-              {streamingText || 'Starting narration...'}
+              <Response parseIncompleteMarkdown={true}>
+                {streamingText}
+              </Response>
               <span className={styles.cursor} />
             </div>
           </div>
         )}
 
-        {/* Empty state */}
-        {!streamingText && (
-          <div className={styles.emptyState}>
-            <div className="text-4xl mb-4">🎙️</div>
-            <div className="text-lg font-medium mb-2">
-              {isActive ? 'Waiting for news...' : 'Host agent offline'}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {isActive ? 'New stories will appear here' : 'Start the host to begin broadcasting'}
-            </div>
-          </div>
-        )}
+        {/* Empty state - removed */}
       </div>
     </div>
   );

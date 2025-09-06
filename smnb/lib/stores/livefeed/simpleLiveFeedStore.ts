@@ -72,6 +72,7 @@ export interface LiveFeedPost {
 export interface CompletedStory {
   id: string;
   narrative: string;
+  title?: string; // LLM-generated title for the narrated storyline
   tone: 'breaking' | 'developing' | 'analysis' | 'opinion' | 'human-interest';
   priority: 'high' | 'medium' | 'low';
   timestamp: Date;
@@ -81,6 +82,8 @@ export interface CompletedStory {
     author: string;
     subreddit?: string;
     url?: string;
+    thumbnail?: string;
+    is_video?: boolean;
   };
   sentiment?: 'positive' | 'negative' | 'neutral';
   topics?: string[];
@@ -607,7 +610,9 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
         title: "AI Breakthrough Changes Everything",
         author: "tech_reporter",
         subreddit: "technology",
-        url: "https://reddit.com/r/technology/sample"
+        url: "https://reddit.com/r/technology/sample",
+        thumbnail: "https://via.placeholder.com/320x240/1e40af/ffffff?text=AI+Breakthrough",
+        is_video: false
       },
       sentiment: 'positive' as const,
       topics: ['AI', 'Technology', 'Research'],
@@ -637,6 +642,7 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       const stories: CompletedStory[] = convexStories.map(story => ({
         id: story.story_id,
         narrative: story.narrative,
+        title: story.title, // Include the LLM-generated title
         tone: story.tone,
         priority: story.priority,
         timestamp: new Date(story.completed_at),
@@ -670,7 +676,7 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       await convexClient.mutation(api.storyHistory.addStory, {
         story_id: story.id,
         narrative: story.narrative,
-        title: story.originalItem?.title,
+        title: story.title, // Use the LLM-generated story title
         tone: story.tone,
         priority: story.priority,
         agent_type: agentType,

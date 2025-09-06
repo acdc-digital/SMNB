@@ -1,32 +1,103 @@
-// ACTIVITY BAR
+// ACTIVITY BAR - Left navigation sidebar for SMNB Dashboard
 // /Users/matthewsimon/Projects/SMNB/smnb/app/dashboard/activityBar/ActivityBar.tsx
 
-'use client';
+"use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { LucideIcon } from "lucide-react";
+import {
+  Wallpaper,
+  ChartNetwork,
+  FileCode,
+  Settings,
+  User
+} from "lucide-react";
 
-// Simple placeholder icons (no extra deps). Replace with real SVGs later.
-const icons = [
-  { id: "home", label: "Home", char: "🏠" },
-  { id: "feed", label: "Feed", char: "📰" },
-  { id: "search", label: "Search", char: "🔍" },
-  { id: "settings", label: "Settings", char: "⚙️" },
-];
+type PanelType = "home" | "analytics" | "docs" | "settings" | "account";
 
-export default function ActivityBar() {
-  return (
-    <nav className="flex flex-col items-center gap-2 py-4 w-14 shrink-0 border-r border-black/10 dark:border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-      {icons.map((ic) => (
+interface ActivityBarProps {
+  activePanel?: PanelType;
+  onPanelChange?: (panel: PanelType) => void;
+}
+
+export default function ActivityBar({ activePanel = "home", onPanelChange }: ActivityBarProps) {
+  const [currentPanel, setCurrentPanel] = useState<PanelType>(activePanel);
+
+  const activityItems: Array<{ id: PanelType; icon: LucideIcon; label: string }> = [
+    { id: "home", icon: Wallpaper, label: "Home" },
+    { id: "analytics", icon: ChartNetwork, label: "Analytics" },
+    { id: "docs", icon: FileCode, label: "Documentation" },
+    { id: "settings", icon: Settings, label: "Settings" },
+    { id: "account", icon: User, label: "Account" },
+  ];
+
+  const bottomItems: Array<{ id: PanelType; icon: LucideIcon; label: string }> = [];
+
+  const handleActivityClick = (id: PanelType) => {
+    setCurrentPanel(id);
+    onPanelChange?.(id);
+  };
+
+  const renderActivityButton = (item: { id: PanelType; icon: LucideIcon; label: string }) => {
+    const Icon = item.icon;
+    const isActive = currentPanel === item.id;
+    
+    // Special styling for user account button
+    if (item.id === "account") {
+      return (
         <button
-          key={ic.id}
-          title={ic.label}
-          className="w-10 h-10 text-lg rounded-md flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+          key={item.id}
+          onClick={() => handleActivityClick(item.id)}
+          className={`
+            w-full h-11 hover:bg-[#2d2d2d] flex items-center justify-center cursor-pointer
+            ${isActive 
+              ? 'bg-[#2d2d2d] border-r-1 border-[#007acc]' 
+              : ''
+            }
+          `}
+          title={item.label}
         >
-          <span aria-hidden>{ic.char}</span>
-          <span className="sr-only">{ic.label}</span>
+          <div className={`
+            w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium
+            ${isActive 
+              ? 'border-[#cccccc] text-[#cccccc]' 
+              : 'border-[#858585] text-[#858585]'
+            }
+          `}>
+            M
+          </div>
         </button>
-      ))}
-      <div className="mt-auto" />
-    </nav>
+      );
+    }
+    
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleActivityClick(item.id)}
+        className={`
+          w-full h-11 hover:bg-[#2d2d2d] flex items-center justify-center cursor-pointer
+          ${isActive 
+            ? 'bg-[#2d2d2d] border-r-1 border-[#007acc]' 
+            : ''
+          }
+        `}
+        title={item.label}
+      >
+        <Icon
+          className={`w-4 h-4 ${
+            isActive ? 'text-[#cccccc]' : 'text-[#858585]'
+          }`}
+        />
+      </button>
+    );
+  };
+
+  return (
+    <aside className="w-12 bg-[#181818] border-r border-[#2d2d2d] flex flex-col">
+      {/* Activity Icons */}
+      <div className="flex flex-col items-center pb-2">
+        {activityItems.map(renderActivityButton)}
+      </div>
+    </aside>
   );
 }

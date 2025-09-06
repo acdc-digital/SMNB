@@ -14,6 +14,7 @@
 import React, { useEffect } from "react";
 import { WaterfallNarration } from "@/components/host/WaterfallNarration";
 import { useHostAgentStore } from "@/lib/stores/host/hostAgentStore";
+import { Settings } from 'lucide-react';
 
 export default function Host() {
   const { 
@@ -21,6 +22,9 @@ export default function Host() {
     isStreaming,
     streamingText,
     currentNarration,
+    nextStoryCountdown,
+    isGenerating,
+    stats,
     initializeHostAgent, 
     cleanup 
   } = useHostAgentStore();
@@ -37,22 +41,26 @@ export default function Host() {
   // Get current status text and styling
   const getStatusInfo = () => {
     if (!isActive) {
-      return { text: 'Standby', color: 'bg-gray-300', textColor: 'text-muted-foreground' };
+      return { text: 'Offline', color: 'bg-white border border-gray-300', textColor: 'text-muted-foreground' };
     }
     if (isStreaming) {
       return { text: 'Live', color: 'bg-red-500 animate-pulse', textColor: 'text-red-500' };
     }
+    // Stay "On Air" for the full countdown period
     return { text: 'On Air', color: 'bg-orange-500', textColor: 'text-orange-500' };
   };
 
   const statusInfo = getStatusInfo();
 
   return (
-    <div className="flex-1 bg-card border border-border rounded-lg shadow-sm flex flex-col min-h-0">
+    <div className="flex-1 bg-card border border-border rounded-xs shadow-sm flex flex-col min-h-0">
       {/* Enhanced Header with Streaming Status */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-foreground">News Host</h3>
+          {/* Next story countdown */}
+          <span className="text-xs text-muted-foreground">
+            Next: {!isActive ? '-' : isStreaming ? 0 : nextStoryCountdown}s
+          </span>
         </div>
 
         {/* Right-side status indicator */}
@@ -61,6 +69,12 @@ export default function Host() {
           <span className={`text-xs font-medium ${statusInfo.textColor}`}>
             {statusInfo.text}
           </span>
+          <button
+            title="Host Settings"
+            className="p-1 hover:bg-[#2d2d2d] rounded transition-colors border text-muted-foreground cursor-pointer"
+          >
+            <Settings className="w-3 h-3" />
+          </button>
         </div>
       </div>
 
@@ -72,13 +86,17 @@ export default function Host() {
         />
       </div>
 
-      {/* Thin footer with quick indicators */}
-      {currentNarration && isStreaming && (
-        <div className="flex justify-between items-center px-4 py-1 text-xs text-muted-foreground bg-muted/30 border-t border-muted">
-          <span>{streamingText.length} characters</span>
-          <span>314 WPM</span>
+      {/* Status footer - always visible */}
+      <div className="flex items-center px-4 py-1 text-xs bg-muted/30 border-t border-muted">
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground">
+            Queue: {stats.queueLength}
+          </span>
+          <span className="text-muted-foreground">
+            Characters: {streamingText.length}
+          </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }

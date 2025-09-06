@@ -32,6 +32,51 @@ const convertRedditPostToNewsItem = (post: EnhancedRedditPost): NewsItem => {
   };
 };
 
+// Helper function to generate a title from narrative content
+const generateStoryTitle = (narrative: string, tone: string): string => {
+  // Extract the first sentence or key phrase
+  const sentences = narrative.split(/[.!?]+/);
+  const firstSentence = sentences[0]?.trim();
+  
+  if (!firstSentence) return 'Breaking News Update';
+  
+  // Remove common conversation starters and make it more title-like
+  let title = firstSentence
+    .replace(/^(Hey there,?\s*|Well,?\s*|So,?\s*|Breaking:?\s*|Update:?\s*)/i, '')
+    .replace(/^(news watchers!?\s*|folks!?\s*)/i, '')
+    .replace(/🇨🇦|🇺🇸|🌍|📈|📉|🔥|⚡|💰|🏢|🏛️|🎯/g, '') // Remove emojis
+    .trim();
+  
+  // Truncate to approximately 3 lines (around 120-140 characters for typical fonts)
+  const maxLength = 120;
+  if (title.length > maxLength) {
+    // Find a good breaking point (word boundary) near the limit
+    const truncated = title.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(' ');
+    title = lastSpace > maxLength * 0.8 ? truncated.substring(0, lastSpace) : truncated;
+    title += '...';
+  }
+  
+  // Ensure it starts with a capital letter
+  title = title.charAt(0).toUpperCase() + title.slice(1);
+  
+  // Add some context based on tone if title is very short
+  if (title.length < 20) {
+    switch (tone) {
+      case 'breaking':
+        return `Breaking: ${title}`;
+      case 'developing':
+        return `Developing: ${title}`;
+      case 'analysis':
+        return title.includes('Analysis') ? title : `${title}`;
+      default:
+        return title;
+    }
+  }
+  
+  return title;
+};
+
 interface HostAgentState {
   // Service instance
   hostAgent: HostAgentService | null;
@@ -44,6 +89,11 @@ interface HostAgentState {
   isStreaming: boolean;
   streamingText: string;
   streamingNarrationId: string | null;
+  
+  // Countdown state
+  nextStoryCountdown: number; // seconds until next story (0 when narrating)
+  countdownInterval: NodeJS.Timeout | null; // timer reference
+  isGenerating: boolean; // true when generating narration (before streaming starts)
   
   // Narration queue for streaming
   narrationQueue: HostNarration[];
@@ -80,6 +130,10 @@ interface HostAgentState {
   addNarrationToHistory: (narration: HostNarration) => void;
   clearNarrationHistory: () => void;
   cleanup: () => void;
+  
+  // Countdown actions
+  startCountdown: (seconds: number) => void;
+  stopCountdown: () => void;
 }
 
 export const useHostAgentStore = create<HostAgentState>((set, get) => ({
@@ -92,6 +146,11 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
   isStreaming: false,
   streamingText: '',
   streamingNarrationId: null,
+  
+  // Countdown state
+  nextStoryCountdown: 0,
+  countdownInterval: null,
+  isGenerating: false,
   
   // Narration queue
   narrationQueue: [],
@@ -120,20 +179,29 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
     
     // Set up event listeners for streaming
     agent.on('narration:started', (narration: HostNarration) => {
+      // Don't stop countdown yet - let it continue until streaming actually starts
+      
       set({ 
         currentNarration: narration,
-        isStreaming: true,
+        isStreaming: false, // Don't set to true until text actually appears
         streamingText: '',
-        streamingNarrationId: narration.id
+        streamingNarrationId: narration.id,
+        isGenerating: false
       });
       console.log('🎙️ HOST: Narration started:', narration.narrative.substring(0, 50) + '...');
     });
     
     agent.on('narration:streaming', (data: { narrationId: string; currentText: string }) => {
-      const { streamingNarrationId } = get();
+      const { streamingNarrationId, isStreaming } = get();
       console.log(`📡 HOST STORE: Received streaming data for ${data.narrationId}, current: ${streamingNarrationId}, chars: ${data.currentText.length}`);
       if (streamingNarrationId === data.narrationId) {
-        set({ streamingText: data.currentText });
+        // Set isStreaming to true and stop countdown only when text actually starts appearing
+        if (!isStreaming && data.currentText.length > 0) {
+          get().stopCountdown(); // Stop countdown when streaming actually begins
+          set({ isStreaming: true, streamingText: data.currentText });
+        } else {
+          set({ streamingText: data.currentText });
+        }
       }
     });
     
@@ -157,6 +225,13 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
           streamingNarrationId: null,
           currentNarration: null
         });
+        
+        // Start countdown for next story (get actual cooldown from service + 2s warm-up)
+        const hostAgent = get().hostAgent;
+        const cooldownSeconds = hostAgent 
+          ? Math.ceil(hostAgent.getTimingConfig().NARRATION_COOLDOWN_MS / 1000) + 2
+          : 6; // fallback to 6 seconds (4 + 2 warm-up)
+        get().startCountdown(cooldownSeconds);
         
         console.log(`✅ HOST: Narration completed, ${get().narrationQueue.length} items remaining in queue`);
       }
@@ -324,9 +399,11 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
       
       // Also add completed story to live feed history
       import('@/lib/stores/livefeed/simpleLiveFeedStore').then(module => {
+        const generatedTitle = generateStoryTitle(narration.narrative, narration.tone);
         const completedStory = {
           id: `host-${narration.id}`, // Prefix with 'host' for agent type identification
           narrative: narration.narrative,
+          title: generatedTitle, // Use generated title instead of original Reddit title
           tone: narration.tone,
           priority: narration.priority,
           timestamp: new Date(),
@@ -359,7 +436,7 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
   
   // Cleanup when component unmounts
   cleanup: () => {
-    const { hostAgent } = get();
+    const { hostAgent, countdownInterval } = get();
     if (hostAgent) {
       console.log('🧹 Cleaning up host agent service...');
       hostAgent.stop();
@@ -369,6 +446,51 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
         isActive: false, 
         currentNarration: null 
       });
+    }
+    // Clear countdown timer
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      set({ countdownInterval: null, nextStoryCountdown: 0 });
+    }
+  },
+  
+  // Start countdown timer
+  startCountdown: (seconds: number) => {
+    const { countdownInterval } = get();
+    
+    // Clear existing timer
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+    }
+    
+    set({ nextStoryCountdown: seconds, isGenerating: false });
+    
+    const timer = setInterval(() => {
+      const { nextStoryCountdown } = get();
+      if (nextStoryCountdown > 0) {
+        const newCount = nextStoryCountdown - 1;
+        set({ nextStoryCountdown: newCount });
+        
+        // Start generating when countdown reaches 2 (warm-up period)
+        if (newCount === 2) {
+          set({ isGenerating: true });
+        }
+      } else {
+        // Countdown finished
+        clearInterval(timer);
+        set({ countdownInterval: null, nextStoryCountdown: 0 });
+      }
+    }, 1000);
+    
+    set({ countdownInterval: timer });
+  },
+  
+  // Stop countdown timer
+  stopCountdown: () => {
+    const { countdownInterval } = get();
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      set({ countdownInterval: null, nextStoryCountdown: 0, isGenerating: false });
     }
   }
 }));

@@ -39,7 +39,7 @@ flowchart TB
     
     %% Feed Sidebar Components
     subgraph FeedSidebar["📰 Feed Sidebar"]
-        LiveFeedComponent[🔴 SimpleLiveFeedCSSAnimated]
+        LiveFeedComponent[🔴 LiveFeed]
         FeedControls[🎛️ Feed Controls]
         PostDisplay[📝 Post Display]
     end
@@ -216,10 +216,10 @@ flowchart TD
     MainArea --> Studio[🎬 Studio]
     
     %% Feed Sidebar Components
-    FeedSidebar --> SimpleLiveFeed[📡 SimpleLiveFeedCSSAnimated]
-    SimpleLiveFeed --> PostCard[📝 Post Card]
-    SimpleLiveFeed --> FeedControls[🎛️ Feed Controls]
-    SimpleLiveFeed --> ViewToggle[👁️ View Toggle]
+    FeedSidebar --> LiveFeedComponent[📡 LiveFeed]
+    LiveFeedComponent --> PostCard[📝 Post Card]
+    LiveFeedComponent --> FeedControls[🎛️ Feed Controls]
+    LiveFeedComponent --> ViewToggle[👁️ View Toggle]
     
     %% Studio Components
     Studio --> HostControls[🎙️ Host Controls]

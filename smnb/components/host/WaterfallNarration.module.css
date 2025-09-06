@@ -5,10 +5,9 @@
 
 .currentNarration {
   margin-bottom: 1.5rem;
-  padding: 1rem;
+  padding: 0 1rem 1rem 1rem; /* no top padding */
   background: var(--card);
   border-radius: 0.5rem;
-  border: 1px solid var(--border);
   opacity: 0.8;
 }
 

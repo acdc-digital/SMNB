@@ -1,44 +1,74 @@
-// THEME TOGGLE
+// THEME TOGGLE - Theme switcher component with moon/sun icons
 // /Users/matthewsimon/Projects/SMNB/smnb/components/ui/ThemeToggle.tsx
 
-'use client';
+"use client"
 
-import { Moon, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import * as React from "react"
+import { Moon, Sun, Monitor } from "lucide-react"
+import { useTheme } from "next-themes"
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
 
-  // useEffect only runs on the client, so now we can safely show the UI
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Only render after hydration to avoid SSR mismatch
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if (!mounted) {
-    // Return a placeholder button to prevent hydration issues
     return (
-      <button 
-        className="flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 bg-background/60 hover:bg-background/80 transition-colors"
-        aria-label="Toggle theme"
-      >
-        <div className="w-4 h-4" />
+      <button className="h-6 w-6 p-0 text-[#858585] bg-transparent">
+        <span className="sr-only">Toggle theme</span>
+        <Moon className="h-4 w-4" />
       </button>
-    );
+    )
+  }
+
+  const cycleTheme = () => {
+    if (theme === "light") {
+      setTheme("dark")
+    } else if (theme === "dark") {
+      setTheme("system")
+    } else {
+      setTheme("light")
+    }
+  }
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    cycleTheme()
+    // Remove focus immediately after click to return to dim state
+    e.currentTarget.blur()
+  }
+
+  const getIcon = () => {
+    if (theme === "light") {
+      return <Sun className="h-4 w-4" />
+    } else if (theme === "dark") {
+      return <Moon className="h-4 w-4" />
+    } else {
+      return <Monitor className="h-4 w-4" />
+    }
+  }
+
+  const getTooltip = () => {
+    if (theme === "light") {
+      return "Switch to dark mode"
+    } else if (theme === "dark") {
+      return "Switch to system theme"
+    } else {
+      return "Switch to light mode"
+    }
   }
 
   return (
     <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 bg-background/60 hover:bg-background/80 transition-colors"
-      aria-label="Toggle theme"
+      onClick={handleClick}
+      title={getTooltip()}
+      className="h-6 w-6 p-0 text-[#858585] hover:text-white focus:outline-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent transition-colors duration-150"
     >
-      {theme === 'dark' ? (
-        <Sun className="w-4 h-4 text-foreground/80" />
-      ) : (
-        <Moon className="w-4 h-4 text-foreground/80" />
-      )}
+      <span className="sr-only">Toggle theme</span>
+      {getIcon()}
     </button>
-  );
+  )
 }

@@ -24,11 +24,11 @@ export interface ProducerConfig {
 }
 
 export const DEFAULT_PRODUCER_CONFIG: ProducerConfig = {
-  searchInterval: 60000, // 60 seconds (1 minute) - much more respectful
+  searchInterval: 120000, // 2 minutes - much more respectful to Reddit API
   duplicateAnalysisThreshold: 100, // analyze posts with 100+ score
   contextUpdateInterval: 30000, // 30 seconds
-  maxSearchQueries: 3, // Reduced from 5 to 3
-  trendsToTrack: ['breaking', 'urgent', 'developing'], // Reduced list to minimize requests
+  maxSearchQueries: 2, // Reduced to 2 to minimize API load
+  trendsToTrack: ['breaking', 'urgent'], // Further reduced list to minimize requests
   subredditsToMonitor: ['news', 'worldnews', 'politics', 'technology', 'business']
 };
 
@@ -86,6 +86,17 @@ export class ProducerAgentService extends EventEmitter {
   private searchInterval: NodeJS.Timeout | null = null;
   private contextUpdateInterval: NodeJS.Timeout | null = null;
   private startTime: number = 0;
+  
+  // Rate limiting controls
+  private lastRequestTime = 0;
+  private requestCount = 0;
+  private requestWindow = 60000; // 1 minute window
+  private maxRequestsPerWindow = 8; // Conservative limit for Reddit API
+  private minRequestDelay = 5000; // Minimum 5 seconds between requests
+  
+  // Circuit breaker state
+  private circuitBreakerOpen = false;
+  private circuitBreakerResetTime = 0;
   
   constructor(config: Partial<ProducerConfig> = {}) {
     super();
@@ -169,6 +180,20 @@ export class ProducerAgentService extends EventEmitter {
   }
 
   /**
+   * Get rate limiting and circuit breaker status
+   */
+  getRateLimitStatus() {
+    return {
+      circuitBreakerOpen: this.circuitBreakerOpen,
+      circuitBreakerResetTime: this.circuitBreakerResetTime,
+      requestCount: this.requestCount,
+      maxRequestsPerWindow: this.maxRequestsPerWindow,
+      timeSinceLastRequest: Date.now() - this.lastRequestTime,
+      minRequestDelay: this.minRequestDelay
+    };
+  }
+
+  /**
    * Add live feed post for analysis
    */
   async analyzeLiveFeedPost(post: EnhancedRedditPost): Promise<void> {
@@ -218,10 +243,48 @@ export class ProducerAgentService extends EventEmitter {
   }
 
   private async performTrendSearches(): Promise<void> {
+    // Check circuit breaker first
+    if (this.circuitBreakerOpen && Date.now() < this.circuitBreakerResetTime) {
+      console.log(`⏳ Circuit breaker open, waiting until ${new Date(this.circuitBreakerResetTime).toLocaleTimeString()}`);
+      return;
+    }
+    
+    // Reset circuit breaker if time has passed
+    if (this.circuitBreakerOpen && Date.now() >= this.circuitBreakerResetTime) {
+      this.circuitBreakerOpen = false;
+      console.log('✅ Circuit breaker reset, resuming operations');
+    }
+
     const searches = this.config.trendsToTrack.slice(0, this.config.maxSearchQueries);
+    console.log('🔍 Producer Agent: Performing trend searches...');
     
     for (const keyword of searches) {
+      // Implement rate limiting
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      // Enforce minimum delay between requests
+      if (timeSinceLastRequest < this.minRequestDelay) {
+        const waitTime = this.minRequestDelay - timeSinceLastRequest;
+        console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before next request`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+      // Check if we've exceeded the request window limit
+      if (now - this.requestWindow > 60000) {
+        // Reset window
+        this.requestCount = 0;
+      }
+      
+      if (this.requestCount >= this.maxRequestsPerWindow) {
+        console.log(`⚠️ Rate limit reached (${this.requestCount}/${this.maxRequestsPerWindow}), waiting for next window`);
+        break;
+      }
+
       try {
+        this.lastRequestTime = Date.now();
+        this.requestCount++;
+        
         // Use API route instead of direct Reddit API call
         const response = await fetch(`/api/reddit?q=${encodeURIComponent(keyword)}&subreddit=all&sort=hot&t=hour&limit=10`);
         
@@ -229,13 +292,25 @@ export class ProducerAgentService extends EventEmitter {
           const errorText = await response.text();
           console.error(`🏭 Producer Agent: API request failed for "${keyword}": ${response.status} - ${errorText}`);
           
-          // If rate limited or circuit breaker is open, skip remaining searches and wait longer
-          if (response.status === 429 || errorText.includes('Circuit breaker')) {
-            console.warn('🏭 Producer Agent: Rate limited or circuit breaker open, skipping remaining searches');
-            break;
+          // Handle rate limiting and circuit breaker
+          if (response.status === 429 || response.status === 503) {
+            try {
+              const errorData = JSON.parse(errorText);
+              if (errorData.circuitBreakerOpen || errorData.retryAfter) {
+                const retryAfter = errorData.retryAfter || 60;
+                this.circuitBreakerOpen = true;
+                this.circuitBreakerResetTime = Date.now() + (retryAfter * 1000);
+                console.log(`🛑 Circuit breaker activated, will retry after ${retryAfter} seconds`);
+                break; // Stop all searches
+              }
+            } catch (e) {
+              // If can't parse error, just wait a default time
+              this.circuitBreakerOpen = true;
+              this.circuitBreakerResetTime = Date.now() + 60000;
+              console.log('🛑 Rate limited, waiting 60 seconds');
+              break;
+            }
           }
-          
-          // For other errors, continue with next search
           continue;
         }
         
@@ -255,10 +330,9 @@ export class ProducerAgentService extends EventEmitter {
         console.log(`🏭 Producer Agent: Search completed for "${keyword}" - ${posts.length} results`);
         this.emit('producer:search_completed', keyword, posts.length);
         
-        // Longer delay between searches to avoid rate limiting (8-15 seconds)
-        const delay = 8000 + Math.random() * 7000; // 8-15 second random delay
-        console.log(`🏭 Producer Agent: Waiting ${Math.round(delay)}ms before next search`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Add a small delay between successful requests too
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
       } catch (error) {
         console.error(`🏭 Producer Agent: Error searching for "${keyword}":`, error);
         
@@ -276,6 +350,31 @@ export class ProducerAgentService extends EventEmitter {
 
   private async performContextualSearch(post: EnhancedRedditPost): Promise<RedditPost[]> {
     try {
+      // Check circuit breaker before making request
+      if (this.circuitBreakerOpen && Date.now() < this.circuitBreakerResetTime) {
+        console.log('⏳ Circuit breaker open, skipping contextual search');
+        return [];
+      }
+
+      // Apply rate limiting for contextual searches too
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      if (timeSinceLastRequest < this.minRequestDelay) {
+        const waitTime = this.minRequestDelay - timeSinceLastRequest;
+        console.log(`⏱️ Rate limiting contextual search: waiting ${waitTime}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+
+      // Check request count
+      if (this.requestCount >= this.maxRequestsPerWindow) {
+        console.log('⚠️ Rate limit reached, skipping contextual search');
+        return [];
+      }
+
+      this.lastRequestTime = Date.now();
+      this.requestCount++;
+      
       // Extract keywords from title and content
       const keywords = this.extractKeywords(post.title + ' ' + (post.selftext || ''));
       const searchQuery = keywords.slice(0, 3).join(' ');
@@ -284,6 +383,22 @@ export class ProducerAgentService extends EventEmitter {
       const response = await fetch(`/api/reddit?q=${encodeURIComponent(searchQuery)}&subreddit=all&sort=relevance&t=week&limit=5`);
       
       if (!response.ok) {
+        // Handle circuit breaker responses
+        if (response.status === 429 || response.status === 503) {
+          const errorText = await response.text();
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.circuitBreakerOpen || errorData.retryAfter) {
+              const retryAfter = errorData.retryAfter || 60;
+              this.circuitBreakerOpen = true;
+              this.circuitBreakerResetTime = Date.now() + (retryAfter * 1000);
+              console.log(`🛑 Circuit breaker activated during contextual search, retry after ${retryAfter}s`);
+            }
+          } catch (e) {
+            this.circuitBreakerOpen = true;
+            this.circuitBreakerResetTime = Date.now() + 60000;
+          }
+        }
         throw new Error(`API request failed: ${response.status}`);
       }
       

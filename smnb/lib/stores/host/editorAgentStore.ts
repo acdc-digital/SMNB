@@ -186,6 +186,7 @@ export const useEditorAgentStore = create<EditorAgentStoreState>((set, get) => (
           const completedStory = {
             id: `editor-${completedContent.id}`, // Prefix with 'editor' for agent type identification
             narrative: completedContent.content,
+            title: completedContent.title, // Add the editor-generated title
             tone: 'analysis' as const, // Default tone for editor content
             priority: 'medium' as const, // Default priority for editor content
             timestamp: new Date(),

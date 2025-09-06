@@ -150,14 +150,12 @@ processPostForThreads(post: EnhancedRedditPost): Promise<{
 
 ## Testing
 
-### Test Page: `/test-threads`
+The story threading system includes comprehensive workflow testing through the core application components. Testing capabilities are integrated into the main dashboard and can be accessed through:
 
-The test page provides comprehensive testing of the story threading system:
-
-1. **Run Test Workflow**: Creates sample "AI Breakthrough" post
-2. **Test Update Post**: Creates follow-up post to trigger thread update
-3. **View Statistics**: Shows active threads, updates, and system status
-4. **Timeline View**: Detailed workflow execution timeline
+1. **Live Feed Testing**: Use the main live feed component to test threading behavior
+2. **Console Logging**: Detailed workflow execution logs available in browser console
+3. **Convex Dashboard**: Monitor database changes and function executions
+4. **Producer/Host Communication**: Test through the main studio interface
 
 ### Test Scenarios
 
@@ -263,12 +261,14 @@ The badges are now fully implemented in all live feed UI components:
 - Color-coded by update importance
 - Rounded pill design for modern look
 
-### Badge Testing
-A comprehensive demo is available at `/test-badges` showing:
-- All four badge types with proper color coding
-- Toggle functionality to show/hide badges
-- Thread topic indicators
-- Live post formatting with badges
+### Badge System
+The story threading system includes visual indicators for different types of thread updates:
+- **BREAKING UPDATE**: Major developments in ongoing stories
+- **FOLLOW-UP**: Additional information or context
+- **CLARIFIED**: Corrections or clarifications to previous information
+- **UPDATED**: General updates to thread content
+
+Badge functionality is integrated into the main live feed component and automatically appears when thread updates are detected.
 
 ## Performance Considerations
 
