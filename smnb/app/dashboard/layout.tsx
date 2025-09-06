@@ -6,6 +6,7 @@
 import React from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NavigationButtons } from "@/components/ui/NavigationButtons";
 import { TokenCounter } from "@/components/ui/TokenCounter";
 import ActivityBar from "./activityBar/ActivityBar";
 
@@ -20,7 +21,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="w-full h-6 flex items-center gap-3 px-4 text-xs tracking-wide uppercase text-foreground/60 border-b border-black/10 dark:border-white/10 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40">
         <span className="font-medium">SMNB Dashboard</span>
         <span className="hidden sm:inline text-foreground/40">Inspired by VS Code layout</span>
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-2">
+          <NavigationButtons />
           <ThemeToggle />
           <Link href="/" className="hover:underline">Home</Link>
         </div>
