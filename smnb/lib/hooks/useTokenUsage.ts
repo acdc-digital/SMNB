@@ -26,6 +26,11 @@ export interface TokenUsageStats {
   tokens_by_type: Record<string, number>;
   cost_by_type: Record<string, number>;
   hourly_usage: Array<{ hour: string; requests: number; tokens: number; cost: number }>;
+  // Enhanced tool tracking fields
+  total_tool_requests: number;
+  total_tool_definitions_tokens: number;
+  total_tool_results_tokens: number;
+  tool_usage_by_type: Record<string, number>;
 }
 
 export interface DailyUsageData {

@@ -47,12 +47,22 @@ export function TokenCounter({ className = '' }: TokenCounterProps) {
       <div className={`flex items-center gap-2 text-xs text-foreground/40 ${className}`}>
         <span>Tokens: —</span>
         <span>Cost: —</span>
+        <span>Tools: —</span>
       </div>
     );
   }
 
-  const { total_input_tokens, total_output_tokens, total_cost } = stats;
+  const {
+    total_input_tokens,
+    total_output_tokens,
+    total_cost,
+    total_tool_requests,
+    total_tool_definitions_tokens,
+    total_tool_results_tokens
+  } = stats;
   const totalTokens = total_input_tokens + total_output_tokens;
+  const totalToolTokens = total_tool_definitions_tokens + total_tool_results_tokens;
+  const hasToolUsage = total_tool_requests > 0;
 
   return (
     <div className={`flex items-center gap-3 text-xs ${className}`}>
@@ -75,6 +85,22 @@ export function TokenCounter({ className = '' }: TokenCounterProps) {
           {formatCost(total_cost)}
         </span>
       </div>
+      {hasToolUsage && (
+        <div className="flex items-center gap-1">
+          <span className="text-foreground/60">🛠️ Tools:</span>
+          <span className="text-foreground/80 font-medium">
+            {formatNumber(total_tool_requests)}
+          </span>
+          {totalToolTokens > 0 && (
+            <>
+              <span className="text-foreground/40">•</span>
+              <span className="text-foreground/70 text-xs">
+                {formatNumber(totalToolTokens)}t
+              </span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

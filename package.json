@@ -8,6 +8,10 @@
     "dev:next": "pnpm --filter smnb dev",
     "dev:convex": "cd smnb && npx convex dev",
     "convex": "cd smnb && npx convex dev",
-    "dev:all": "pnpm -r --parallel dev:next dev:convex"
+    "dev:all": "pnpm -r --parallel dev:next dev:convex",
+    "clean": "cd smnb && node scripts/pnpm-clean.js",
+    "clean:stats": "cd smnb && npx convex run clearDatabase:getDatabaseStats",
+    "clean:largest": "cd smnb && npx convex run clearDatabase:clearLargestTables",
+    "clean:tables": "cd smnb && node scripts/run-clear-database.js tables"
   }
 }

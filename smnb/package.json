@@ -8,7 +8,11 @@
     "build": "next build",
     "start": "next start -p 8888",
     "lint": "eslint",
-    "dev:convex": "npx convex dev"
+    "dev:convex": "npx convex dev",
+    "clean": "node scripts/pnpm-clean.js",
+    "clean:stats": "npx convex run clearDatabase:getDatabaseStats",
+    "clean:tables": "node scripts/run-clear-database.js tables",
+    "clean:largest": "npx convex run clearDatabase:clearLargestTables"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.60.0",

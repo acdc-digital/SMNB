@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as clearDatabase from "../clearDatabase.js";
 import type * as redditFeed from "../redditFeed.js";
 import type * as redditPosts from "../redditPosts.js";
 import type * as storyHistory from "../storyHistory.js";
@@ -27,6 +28,7 @@ import type * as tokenUsage from "../tokenUsage.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  clearDatabase: typeof clearDatabase;
   redditFeed: typeof redditFeed;
   redditPosts: typeof redditPosts;
   storyHistory: typeof storyHistory;

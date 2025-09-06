@@ -225,17 +225,28 @@ export class TokenCountingService {
   }
 
   /**
-   * Calculate cost for token usage
+   * Calculate cost for token usage including tool tokens
    */
-  calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  calculateCost(
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+    toolDefinitionsTokens?: number,
+    toolResultsTokens?: number
+  ): number {
     const pricing = ANTHROPIC_PRICING[model];
     if (!pricing) {
       console.warn(`⚠️ No pricing data for model: ${model}`);
       return 0;
     }
 
-    const inputCost = inputTokens / pricing.inputTokensPerDollar;
-    const outputCost = outputTokens / pricing.outputTokensPerDollar;
+    // Tool definition tokens are treated as input tokens for pricing
+    const totalInputTokens = inputTokens + (toolDefinitionsTokens || 0);
+    // Tool result tokens are treated as output tokens for pricing
+    const totalOutputTokens = outputTokens + (toolResultsTokens || 0);
+
+    const inputCost = totalInputTokens / pricing.inputTokensPerDollar;
+    const outputCost = totalOutputTokens / pricing.outputTokensPerDollar;
     
     return inputCost + outputCost;
   }
@@ -248,7 +259,13 @@ export class TokenCountingService {
       ...metrics,
       timestamp: new Date(),
       totalTokens: metrics.inputTokens + metrics.outputTokens + (metrics.toolDefinitionsTokens || 0) + (metrics.toolResultsTokens || 0),
-      estimatedCost: this.calculateCost(metrics.model, metrics.inputTokens, metrics.outputTokens)
+      estimatedCost: this.calculateCost(
+        metrics.model,
+        metrics.inputTokens,
+        metrics.outputTokens,
+        metrics.toolDefinitionsTokens,
+        metrics.toolResultsTokens
+      )
     };
 
     this.usageHistory.push(completeMetrics);
@@ -265,7 +282,9 @@ export class TokenCountingService {
       });
     }
 
-    const toolInfo = metrics.hasTools ? ` (with ${metrics.toolsUsed?.length || 0} tools)` : '';
+    const toolInfo = metrics.hasTools ?
+      ` (with ${metrics.toolsUsed?.length || 0} tools, ${(metrics.toolDefinitionsTokens || 0) + (metrics.toolResultsTokens || 0)} tool tokens)` :
+      '';
     console.log(`💰 Token usage recorded: ${completeMetrics.totalTokens} tokens, $${completeMetrics.estimatedCost.toFixed(4)}${toolInfo}`);
     
     return completeMetrics;

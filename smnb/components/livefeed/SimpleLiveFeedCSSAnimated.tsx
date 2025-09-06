@@ -7,6 +7,19 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { enhancedProcessingPipeline } from '@/lib/services/livefeed/enhancedProcessingPipeline';
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
+import { 
+  AlertTriangle, 
+  TrendingUp, 
+  Brain, 
+  MessageCircle, 
+  Heart, 
+  Newspaper,
+  Flame,
+  Star,
+  FileText,
+  Bookmark,
+  ExternalLink
+} from 'lucide-react';
 
 interface SimpleLiveFeedProps {
   className?: string;
