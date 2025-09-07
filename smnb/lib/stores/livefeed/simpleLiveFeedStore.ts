@@ -151,6 +151,7 @@ interface SimpleLiveFeedStore {
   addCompletedStory: (story: CompletedStory) => void;
   clearStoryHistory: () => void;
   addTestStory: () => void; // For testing
+  addMultipleTestStories: () => void; // For pin testing
   
   // Pin actions
   pinStory: (storyId: string) => void;
@@ -663,6 +664,64 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       const newHistory = [testStory, ...state.storyHistory];
       const trimmedHistory = newHistory.slice(0, state.maxStoryHistory);
       console.log(`🧪 Added test story for demonstration purposes`);
+      return { storyHistory: trimmedHistory };
+    });
+  },
+
+  // Add multiple test stories for pin functionality testing
+  addMultipleTestStories: () => {
+    const testStories = [
+      {
+        id: `test-story-1-${Date.now()}`,
+        narrative: "First test story about AI developments in the tech industry. This story will help us test the pin functionality and ensure everything works as expected.",
+        tone: 'breaking' as const,
+        priority: 'high' as const,
+        timestamp: new Date(Date.now() - 1000),
+        duration: 30,
+        originalItem: {
+          title: "First AI Story",
+          author: "tech_reporter1",
+          subreddit: "technology"
+        },
+        sentiment: 'positive' as const,
+        topics: ['AI', 'Technology']
+      },
+      {
+        id: `test-story-2-${Date.now()}`,
+        narrative: "Second test story covering developments in renewable energy. This helps us test multiple stories and pin ordering functionality.",
+        tone: 'developing' as const,
+        priority: 'medium' as const,
+        timestamp: new Date(Date.now() - 2000),
+        duration: 25,
+        originalItem: {
+          title: "Renewable Energy Progress",
+          author: "energy_reporter",
+          subreddit: "energy"
+        },
+        sentiment: 'positive' as const,
+        topics: ['Energy', 'Environment']
+      },
+      {
+        id: `test-story-3-${Date.now()}`,
+        narrative: "Third test story about space exploration and recent discoveries. Perfect for testing the pin functionality with multiple stories.",
+        tone: 'analysis' as const,
+        priority: 'low' as const,
+        timestamp: new Date(Date.now() - 3000),
+        duration: 35,
+        originalItem: {
+          title: "Space Exploration Update",
+          author: "space_reporter",
+          subreddit: "space"
+        },
+        sentiment: 'neutral' as const,
+        topics: ['Space', 'Science']
+      }
+    ];
+    
+    set((state) => {
+      const newHistory = [...testStories, ...state.storyHistory];
+      const trimmedHistory = newHistory.slice(0, state.maxStoryHistory);
+      console.log(`🧪 Added ${testStories.length} test stories for pin functionality testing`);
       return { storyHistory: trimmedHistory };
     });
   },

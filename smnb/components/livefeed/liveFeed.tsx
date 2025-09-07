@@ -23,6 +23,7 @@ export default function LiveFeed({ className }: LiveFeedProps) {
     pinStory,
     unpinStory,
     removeStory,
+    addMultipleTestStories,
   } = useSimpleLiveFeedStore();
 
   // Sort stories with pinned ones first
@@ -88,6 +89,14 @@ export default function LiveFeed({ className }: LiveFeedProps) {
           Live Stories {sortedStories.length > 0 ? `(${sortedStories.length})` : ''}
         </div>
         <div className="flex items-center gap-2">
+          {/* Add test stories button for demonstration */}
+          <button
+            onClick={addMultipleTestStories}
+            title="Add Test Stories"
+            className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors cursor-pointer"
+          >
+            Add Test Stories
+          </button>
           <button
             onClick={clearStoryHistory}
             title="Clear Stories"
