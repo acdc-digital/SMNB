@@ -95,6 +95,10 @@ export interface CompletedStory {
   updateType?: StoryUpdate['updateType']; // Type of update if it's an update
   threadTopic?: string; // Topic of the thread for display
   updateCount?: number; // Number of updates in the thread
+  
+  // Pin functionality
+  isPinned?: boolean; // Whether this story is pinned
+  pinnedOrder?: number; // Order of pinned stories (1 = top, 2 = second, etc.)
 }
 
 interface SimpleLiveFeedStore {
@@ -147,6 +151,11 @@ interface SimpleLiveFeedStore {
   addCompletedStory: (story: CompletedStory) => void;
   clearStoryHistory: () => void;
   addTestStory: () => void; // For testing
+  
+  // Pin actions
+  pinStory: (storyId: string) => void;
+  unpinStory: (storyId: string) => void;
+  removeStory: (storyId: string) => void;
   
   // Convex integration
   loadStoriesFromConvex: () => Promise<void>;
@@ -726,5 +735,82 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       console.error('❌ Failed to save story to Convex:', error);
       // Don't throw - this shouldn't break the normal flow
     }
+  },
+
+  // Pin actions
+  pinStory: (storyId: string) => {
+    set((state) => {
+      const story = state.storyHistory.find(s => s.id === storyId);
+      if (!story || story.isPinned) {
+        return state; // Story not found or already pinned
+      }
+
+      // Find the next pinned order number
+      const pinnedStories = state.storyHistory.filter(s => s.isPinned);
+      const nextPinnedOrder = pinnedStories.length > 0 
+        ? Math.max(...pinnedStories.map(s => s.pinnedOrder || 0)) + 1 
+        : 1;
+
+      const updatedHistory = state.storyHistory.map(s =>
+        s.id === storyId
+          ? { ...s, isPinned: true, pinnedOrder: nextPinnedOrder }
+          : s
+      );
+
+      console.log(`📌 Pinned story: ${story.narrative.substring(0, 30)}... (Order: ${nextPinnedOrder})`);
+      return { storyHistory: updatedHistory };
+    });
+  },
+
+  unpinStory: (storyId: string) => {
+    set((state) => {
+      const story = state.storyHistory.find(s => s.id === storyId);
+      if (!story || !story.isPinned) {
+        return state; // Story not found or not pinned
+      }
+
+      const unpinnedOrder = story.pinnedOrder;
+      
+      // Remove pin from target story and reorder remaining pinned stories
+      const updatedHistory = state.storyHistory.map(s => {
+        if (s.id === storyId) {
+          // Remove pin from target story
+          const { isPinned, pinnedOrder, ...storyWithoutPin } = s;
+          return storyWithoutPin;
+        } else if (s.isPinned && s.pinnedOrder && unpinnedOrder && s.pinnedOrder > unpinnedOrder) {
+          // Shift down stories that were after the unpinned story
+          return { ...s, pinnedOrder: s.pinnedOrder - 1 };
+        }
+        return s;
+      });
+
+      console.log(`📌 Unpinned story: ${story.narrative.substring(0, 30)}...`);
+      return { storyHistory: updatedHistory };
+    });
+  },
+
+  removeStory: (storyId: string) => {
+    set((state) => {
+      const story = state.storyHistory.find(s => s.id === storyId);
+      if (!story) {
+        return state; // Story not found
+      }
+
+      // If removing a pinned story, reorder remaining pinned stories
+      const removedPinnedOrder = story.isPinned ? story.pinnedOrder : null;
+      
+      const updatedHistory = state.storyHistory
+        .filter(s => s.id !== storyId) // Remove the story
+        .map(s => {
+          // Reorder remaining pinned stories if needed
+          if (s.isPinned && s.pinnedOrder && removedPinnedOrder && s.pinnedOrder > removedPinnedOrder) {
+            return { ...s, pinnedOrder: s.pinnedOrder - 1 };
+          }
+          return s;
+        });
+
+      console.log(`🗑️ Removed story: ${story.narrative.substring(0, 30)}...`);
+      return { storyHistory: updatedHistory };
+    });
   },
 }));
