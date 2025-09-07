@@ -14,7 +14,7 @@
 import React, { useEffect } from "react";
 import { WaterfallNarration } from "@/components/host/WaterfallNarration";
 import { useHostAgentStore } from "@/lib/stores/host/hostAgentStore";
-import { Settings } from 'lucide-react';
+import { Settings, Mic, MicOff } from 'lucide-react';
 
 export default function Host() {
   const { 
@@ -25,8 +25,10 @@ export default function Host() {
     nextStoryCountdown,
     isGenerating,
     stats,
+    isMicActive,
     initializeHostAgent, 
-    cleanup 
+    cleanup,
+    toggleMic
   } = useHostAgentStore();
 
   // Initialize host agent on mount
@@ -74,6 +76,13 @@ export default function Host() {
             className="p-1 hover:bg-[#2d2d2d] rounded transition-colors border text-muted-foreground cursor-pointer"
           >
             <Settings className="w-3 h-3" />
+          </button>
+          <button
+            title={isMicActive ? "Disable Audio Narration" : "Enable Audio Narration"}
+            onClick={toggleMic}
+            className="p-1 hover:bg-[#2d2d2d] rounded transition-colors border text-muted-foreground cursor-pointer"
+          >
+            {isMicActive ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
           </button>
         </div>
       </div>
