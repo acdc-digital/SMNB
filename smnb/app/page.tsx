@@ -681,8 +681,8 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             
             {/* Professional Anchor */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-orange-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-orange-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-primary font-bold text-xl flex items-center">
                     <Mic className="mr-3 w-6 h-6 text-orange-400" />
@@ -698,7 +698,7 @@ export default function Home() {
                   <p className="text-secondary leading-relaxed text-body-elegant">
                     Classic broadcast journalism style with authoritative delivery and structured reporting format.
                   </p>
-                  <div className="bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
+                  <div className="bg-background/50 dark:bg-background dark:bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
                     <div className="text-orange-400">&quot;Good evening. Here are tonight&apos;s top stories from across social media...&quot;</div>
                   </div>
                   <div className="flex items-center space-x-4 text-sm">
@@ -710,8 +710,9 @@ export default function Home() {
             </Card>
 
             {/* Conversational */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-blue-400/20 p-6">
+            {/* Conversational Anchor */}
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-blue-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-primary font-bold text-xl flex items-center">
                     <MessageSquare className="mr-3 w-6 h-6 text-blue-400" />
@@ -727,7 +728,7 @@ export default function Home() {
                   <p className="text-secondary leading-relaxed text-body-elegant">
                     Casual, engaging storytelling that makes complex topics accessible and interesting.
                   </p>
-                  <div className="bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
+                  <div className="bg-background dark:bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
                     <div className="text-blue-400">&quot;Hey there! So this is pretty interesting - let me break down what&apos;s happening...&quot;</div>
                   </div>
                   <div className="flex items-center space-x-4 text-sm">
@@ -739,8 +740,8 @@ export default function Home() {
             </Card>
 
             {/* Technical Analyst */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-purple-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent dark:bg-[#262626]/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-purple-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-primary font-bold text-xl flex items-center">
                     <Brain className="mr-3 w-6 h-6 text-purple-400" />
@@ -756,7 +757,7 @@ export default function Home() {
                   <p className="text-secondary leading-relaxed text-body-elegant">
                     In-depth analysis with technical insights, perfect for professional audiences.
                   </p>
-                  <div className="bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
+                  <div className="bg-background dark:bg-[#191919]/50 rounded-lg p-4 font-mono text-sm">
                     <div className="text-purple-400">&quot;Analyzing the sentiment data, we see a 73% positive correlation with...&quot;</div>
                   </div>
                   <div className="flex items-center space-x-4 text-sm">
@@ -833,7 +834,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Live Feed Visualization */}
             <div className="glass-strong rounded-2xl overflow-hidden shadow-strong">
-              <div className="bg-[#262626] border-b border-red-400/20 px-6 py-4">
+              <div className="bg-accent dark:bg-[#262626] border-b border-red-400/20 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-primary font-bold flex items-center">
                     <Radio className="mr-3 w-5 h-5 text-red-400" />
@@ -845,7 +846,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 h-80 overflow-hidden bg-[#191919]">
+              <div className="p-6 h-80 overflow-hidden bg-background dark:bg-[#191919]">
                 <div className="space-y-4 animate-code-scroll">
                   <div className="glass-card rounded-lg p-4 border-l-4 border-red-400">
                     <div className="flex items-center justify-between mb-2">
@@ -906,7 +907,7 @@ export default function Home() {
 
             {/* AI Host Output */}
             <div className="glass-strong rounded-2xl overflow-hidden shadow-strong">
-              <div className="bg-[#262626] border-b border-orange-400/20 px-6 py-4">
+              <div className="bg-accent dark:bg-[#262626] border-b border-orange-400/20 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-primary font-bold flex items-center">
                     <Mic className="mr-3 w-5 h-5 text-orange-400" />
@@ -918,7 +919,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 h-80 overflow-hidden bg-[#191919]">
+              <div className="p-6 h-80 overflow-hidden bg-background dark:bg-[#191919]">
                 <div className="space-y-6">
                   <div className="text-secondary text-sm font-mono mb-4">
                     Host: Professional • Topic: Technology • Priority: High
@@ -1005,7 +1006,7 @@ export default function Home() {
             
             {/* Traditional News */}
             <Card className="glass-card rounded-2xl overflow-hidden group transition-all duration-500">
-              <CardHeader className="bg-[#262626] border-b border-gray-400/20 p-6">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-gray-400/20 p-6">
                 <CardTitle className="text-gray-400 font-bold text-xl text-center">
                   📺 Traditional News
                 </CardTitle>
@@ -1038,7 +1039,7 @@ export default function Home() {
 
             {/* Social Media Raw */}
             <Card className="glass-card rounded-2xl overflow-hidden group transition-all duration-500">
-              <CardHeader className="bg-[#262626] border-b border-gray-400/20 p-6">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-gray-400/20 p-6">
                 <CardTitle className="text-gray-400 font-bold text-xl text-center">
                   📱 Raw Social Media
                 </CardTitle>
