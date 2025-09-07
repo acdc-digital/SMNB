@@ -5,6 +5,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { 
   Github, 
   Zap, 
@@ -116,26 +117,38 @@ export default function Home() {
           animation-delay: 4s;
         }
         
-        /* Premium Glass Effects with BMW M-Series Grayscale */
+        /* Premium Glass Effects - Theme Aware */
         .glass-subtle {
           backdrop-filter: blur(20px) saturate(180%);
-          background: rgba(25, 25, 25, 0.95); /* Base Black with transparency */
+          background: rgba(243, 244, 246, 0.8); /* Light mode: gray-100 with transparency */
           border: 1px solid rgba(59, 130, 246, 0.1); /* Electric Blue accent */
+        }
+        .dark .glass-subtle {
+          background: rgba(25, 25, 25, 0.95); /* Dark mode: Base Black with transparency */
         }
         .glass-card {
           backdrop-filter: blur(16px) saturate(160%);
-          background: rgba(31, 31, 31, 0.8); /* Dark Gray with transparency */
+          background: rgba(249, 250, 251, 0.8); /* Light mode: gray-50 with transparency */
           border: 1px solid rgba(59, 130, 246, 0.08); /* Electric Blue accent */
+        }
+        .dark .glass-card {
+          background: rgba(31, 31, 31, 0.8); /* Dark mode: Dark Gray with transparency */
         }
         .glass-accent {
           backdrop-filter: blur(12px) saturate(140%);
-          background: rgba(38, 38, 38, 0.9); /* Medium Dark with transparency */
+          background: rgba(229, 231, 235, 0.9); /* Light mode: gray-200 with transparency */
           border: 1px solid rgba(139, 92, 246, 0.15); /* AI Purple accent */
+        }
+        .dark .glass-accent {
+          background: rgba(38, 38, 38, 0.9); /* Dark mode: Medium Dark with transparency */
         }
         .glass-strong {
           backdrop-filter: blur(24px) saturate(200%);
-          background: rgba(31, 31, 31, 0.9); /* Dark Gray with transparency */
+          background: rgba(243, 244, 246, 0.9); /* Light mode: gray-100 with transparency */
           border: 1px solid rgba(139, 92, 246, 0.1); /* AI Purple accent */
+        }
+        .dark .glass-strong {
+          background: rgba(31, 31, 31, 0.9); /* Dark mode: Dark Gray with transparency */
         }
         
         /* San Francisco Pro Font System */
@@ -211,8 +224,8 @@ export default function Home() {
         .shadow-glow { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
       `}</style>
 
-      {/* Navigation Header - BMW M-Series Dark Gray */}
-      <header className="sticky top-0 z-50 bg-[#1f1f1f] backdrop-blur-xl">
+      {/* Navigation Header - Theme-aware */}
+      <header className="sticky top-0 z-50 bg-secondary dark:bg-[#1f1f1f] backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex justify-between items-center">
             
@@ -252,18 +265,19 @@ export default function Home() {
             
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
-              <a href="#platform" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-[#262626]/20 transition-all duration-200">
+              <a href="#platform" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-accent/20 transition-all duration-200">
                 platform
               </a>
-              <a href="#technology" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-[#262626]/20 transition-all duration-200">
+              <a href="#technology" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-accent/20 transition-all duration-200">
                 technology
               </a>
-              <a href="/dashboard" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-[#262626]/20 transition-all duration-200">
+              <a href="/dashboard" className="px-3 py-1.5 text-sm font-mono text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-accent/20 transition-all duration-200">
                 dashboard
               </a>
               
               {/* Actions */}
               <div className="flex items-center space-x-2 ml-6 pl-6">
+                <ThemeToggle />
                 <Button className="px-4 py-1.5 text-sm font-mono font-bold bg-blue-400 border border-blue-400 text-white rounded hover:bg-blue-500 hover:border-blue-500 transition-all duration-200">
                   start_watching
                 </Button>
@@ -272,7 +286,7 @@ export default function Home() {
 
             {/* Mobile Menu */}
             <div className="md:hidden">
-              <Button variant="ghost" size="sm" className="p-2 text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-[#262626]/20 transition-all duration-200">
+              <Button variant="ghost" size="sm" className="p-2 text-secondary border border-transparent rounded hover:border-blue-400/30 hover:text-primary hover:bg-accent/20 transition-all duration-200">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                 </svg>
@@ -281,8 +295,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Live Status Ticker - BMW M-Series Medium Dark */}
-        <div className="bg-[#262626] border-b border-blue-800/30 py-2 overflow-hidden relative">
+        {/* Live Status Ticker - Theme-aware */}
+        <div className="bg-accent dark:bg-[#262626] border-b border-blue-800/30 py-2 overflow-hidden relative">
           <div className="absolute inset-0 bg-gradient-to-r from-[#262626] from-2% via-transparent via-50% to-[#262626] to-98% z-10 pointer-events-none"></div>
           <div className="relative z-0">
             <div className="animate-marquee whitespace-nowrap">
@@ -366,7 +380,7 @@ export default function Home() {
                   <Play className="mr-3 w-5 h-5" />
                   Start Watching
                 </Button>
-                <Button variant="outline" size="lg" className="border-2 border-purple-400/30 text-white bg-[#262626] backdrop-blur-sm px-10 py-4 rounded-xl font-bold text-lg hover:border-purple-400 hover:bg-purple-400/10">
+                <Button variant="outline" size="lg" className="border-2 border-purple-400/30 text-white bg-accent dark:bg-[#262626] backdrop-blur-sm px-10 py-4 rounded-xl font-bold text-lg hover:border-purple-400 hover:bg-purple-400/10">
                   <Radio className="mr-3 w-5 h-5" />
                   Meet Your AI Host
                 </Button>
@@ -392,8 +406,8 @@ export default function Home() {
             {/* Interactive Console Demo */}
             <div className="lg:col-span-6 lg:pt-0 lg:mt-0">
               <div className="glass-strong rounded-2xl overflow-hidden shadow-strong animate-float">
-                {/* Terminal Header - BMW M-Series Medium Dark */}
-                <div className="bg-[#262626] border-b border-blue-400/20 px-8 py-4">
+                {/* Terminal Header - Theme-aware */}
+                <div className="bg-accent dark:bg-[#262626] border-b border-blue-400/20 px-8 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="flex space-x-2">
@@ -411,7 +425,7 @@ export default function Home() {
                 </div>
                 
                 {/* Terminal Content - BMW M-Series Base Black */}
-                <div className="p-8 h-96 overflow-hidden relative font-mono text-sm bg-[#191919]">
+                <div className="p-8 h-96 overflow-hidden relative font-mono text-sm bg-background dark:bg-[#191919]">
                   <div className="animate-code-scroll space-y-4">
                     <div className="text-secondary">$ smnb pipeline status</div>
                     <div className="text-blue-400">✓ Reddit aggregator - Active</div>
@@ -479,8 +493,8 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
             
             {/* Aggregation */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-blue-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-blue-400/20 p-6">
                 <CardTitle className="text-primary font-bold text-xl flex items-center">
                   <Database className="mr-3 w-6 h-6 text-blue-400" />
                   Aggregation
@@ -508,8 +522,8 @@ export default function Home() {
             </Card>
 
             {/* Enrichment */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-purple-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-purple-400/20 p-6">
                 <CardTitle className="text-primary font-bold text-xl flex items-center">
                   <Brain className="mr-3 w-6 h-6 text-purple-400" />
                   Enrichment
@@ -537,8 +551,8 @@ export default function Home() {
             </Card>
 
             {/* Scoring */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-green-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-green-400/20 p-6">
                 <CardTitle className="text-primary font-bold text-xl flex items-center">
                   <Zap className="mr-3 w-6 h-6 text-green-400" />
                   Scoring
@@ -566,8 +580,8 @@ export default function Home() {
             </Card>
 
             {/* Narration */}
-            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-[#262626]/10 transition-all duration-500 hover-lift">
-              <CardHeader className="bg-[#262626] border-b border-orange-400/20 p-6">
+            <Card className="glass-card rounded-2xl overflow-hidden group hover:bg-accent/10 transition-all duration-500 hover-lift">
+              <CardHeader className="bg-accent dark:bg-[#262626] border-b border-orange-400/20 p-6">
                 <CardTitle className="text-primary font-bold text-xl flex items-center">
                   <Mic className="mr-3 w-6 h-6 text-orange-400" />
                   Narration
@@ -641,7 +655,7 @@ export default function Home() {
       </section>
 
       {/* AI Host Personalities Section - BMW M-Series Medium Dark */}
-      <section className="py-16 bg-[#262626]/20" id="hosts">
+      <section className="py-16 bg-accent/20 dark:bg-[#262626]/20" id="hosts">
         <div className="max-w-7xl mx-auto px-8">
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center glass-card px-6 py-3 rounded-full mb-6">
@@ -970,7 +984,7 @@ export default function Home() {
       </section>
 
       {/* Features Comparison Section - BMW M-Series Medium Dark */}
-      <section className="py-16 bg-[#262626]/20" id="features">
+      <section className="py-16 bg-accent/20 dark:bg-[#262626]/20" id="features">
         <div className="max-w-7xl mx-auto px-8">
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center glass-card px-6 py-3 rounded-full mb-6">

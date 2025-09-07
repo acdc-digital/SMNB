@@ -51,20 +51,9 @@ export function ThemeToggle() {
     }
   }
 
-  const getTooltip = () => {
-    if (theme === "light") {
-      return "Switch to dark mode"
-    } else if (theme === "dark") {
-      return "Switch to system theme"
-    } else {
-      return "Switch to light mode"
-    }
-  }
-
   return (
     <button
       onClick={handleClick}
-      title={getTooltip()}
       className="h-6 w-6 p-0 text-[#858585] hover:text-white focus:outline-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent transition-colors duration-150"
     >
       <span className="sr-only">Toggle theme</span>
