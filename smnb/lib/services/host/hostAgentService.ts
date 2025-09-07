@@ -1274,6 +1274,8 @@ Focus on: What's new, why it matters, and how it advances the story.
         return;
       }
 
+      // Store session ID locally to prevent race conditions if session ends during async operations
+      const sessionId = this.currentSessionId;
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
       
       // Append narration to session content with timestamp and metadata
@@ -1284,7 +1286,7 @@ Focus on: What's new, why it matters, and how it advances the story.
       
       // Update the session content in the database
       await convex.mutation(api.redditFeed.updateHostSessionContent, {
-        session_id: this.currentSessionId,
+        session_id: sessionId,
         content_text: this.sessionContent,
         current_narration_id: narration.id,
         narration_type: this.mapToneToNarrationType(narration.tone),
@@ -1307,16 +1309,16 @@ Focus on: What's new, why it matters, and how it advances the story.
         })
       });
 
-      // Update session stats
+      // Update session stats using the locally stored session ID
       const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
       await convex.mutation(api.redditFeed.incrementHostSessionStats, {
-        session_id: this.currentSessionId,
+        session_id: sessionId,
         narrations_increment: 1,
         words_increment: wordCount,
         items_increment: 1,
       });
 
-      console.log(`💾 Appended narration to session ${this.currentSessionId}: ${content.substring(0, 50)}...`);
+      console.log(`💾 Appended narration to session ${sessionId}: ${content.substring(0, 50)}...`);
       
     } catch (error) {
       console.error('❌ Failed to save host narration to session:', error);
