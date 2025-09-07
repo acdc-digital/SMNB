@@ -48,6 +48,9 @@ interface StoryThreadState {
   
   // Configuration
   updateConfig: (newConfig: Partial<ThreadManagementConfig>) => void;
+  
+  // State Management
+  clearAllState: () => void;
 }
 
 export const useStoryThreadStore = create<StoryThreadState>()(
@@ -373,6 +376,19 @@ export const useStoryThreadStore = create<StoryThreadState>()(
         config: { ...state.config, ...newConfig }
       }));
       console.log('⚙️ Updated story thread configuration');
+    },
+    
+    clearAllState: () => {
+      set(() => {
+        console.log('🗑️ COMPLETE THREAD STATE RESET: Clearing all story threads');
+        return {
+          activeThreads: [],
+          archivedThreads: [],
+          config: DEFAULT_THREAD_CONFIG, // Reset to default config
+          isProcessing: false
+        };
+      });
+      console.log('✅ Complete story thread state reset completed');
     }
   }))
 );

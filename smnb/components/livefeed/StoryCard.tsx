@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { CompletedStory } from '@/lib/stores/livefeed/simpleLiveFeedStore';
+import { useStorySelectionStore } from '@/lib/stores/livefeed/storySelectionStore';
 import { cn } from '@/lib/utils';
 import { StoryDisplayUtils, StoryCardTokens, StoryThemes, StoryA11y } from '@/lib/utils/storyUtils';
 
@@ -25,13 +26,19 @@ export default function StoryCard({
 }: StoryCardProps) {
   const selectedTheme = StoryThemes[theme];
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const { selectStory } = useStorySelectionStore();
   
   const cardClassName = cn(
     StoryCardTokens.base,
     selectedTheme.card,
     StoryCardTokens.animation,
+    'group', // Add group class for hover effects
     className
   );
+
+  const handleStoryClick = () => {
+    selectStory(story);
+  };
 
   return (
     <div 
@@ -91,7 +98,11 @@ export default function StoryCard({
 
       {/* Story Title (from database) */}
       {story.title && (
-        <div className="text-lg font-semibold text-card-foreground mb-3 leading-tight line-clamp-3">
+        <div 
+          className="text-lg font-semibold text-white mb-3 leading-tight line-clamp-3 cursor-pointer transition-colors group-hover:text-foreground/90"
+          onClick={handleStoryClick}
+          title="Click to view full story"
+        >
           {story.title}
         </div>
       )}
@@ -119,7 +130,11 @@ export default function StoryCard({
       )}
 
       {/* Story Content */}
-      <div className="text-sm text-foreground/85 line-clamp-3 leading-relaxed">
+      <div 
+        className="text-sm text-foreground line-clamp-3 leading-relaxed cursor-pointer transition-colors group-hover:text-foreground/85"
+        onClick={handleStoryClick}
+        title="Click to view full story"
+      >
         {story.narrative}
       </div>
 
@@ -186,7 +201,15 @@ export default function StoryCard({
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors underline underline-offset-2"
               >
-                {new URL(story.originalItem.url).hostname}
+                {(() => {
+                  try {
+                    return new URL(story.originalItem.url).hostname;
+                  } catch (error) {
+                    // Fallback for invalid URLs
+                    console.warn('Invalid URL:', story.originalItem.url, error);
+                    return story.originalItem.url.length > 30 ? story.originalItem.url.substring(0, 30) + '...' : story.originalItem.url;
+                  }
+                })()}
               </a>
               {story.originalItem?.subreddit && <span>•</span>}
             </>

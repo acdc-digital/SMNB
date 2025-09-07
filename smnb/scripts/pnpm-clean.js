@@ -68,6 +68,14 @@ async function main() {
   if (clearSuccess) {
     console.log(`\n✅ Database cleaning completed successfully!`);
     console.log(`💾 Your Convex database is now completely empty.`);
+    
+    console.log(`\n🧹 Step 3: Clearing frontend application state...`);
+    console.log(`📱 To keep frontend state in sync with empty database, you can manually clear state by:`);
+    console.log(`   • Opening browser console (F12)`);
+    console.log(`   • Running: window.clearAllState()`);
+    console.log(`   • Or refresh the page and use the clear button in the UI`);
+    console.log(`💡 This prevents old posts/stories from showing when database is empty.`);
+    
   } else {
     console.error(`❌ Database cleaning failed.`);
     rl.close();

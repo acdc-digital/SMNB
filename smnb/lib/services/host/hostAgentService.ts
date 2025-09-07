@@ -178,11 +178,14 @@ export class HostAgentService extends EventEmitter {
       this.statsInterval = null;
     }
     
-    // Clear current narration
+    // Clear current narration BUT preserve queue
     this.state.currentNarration = null;
     
+    // PRESERVE QUEUE - Don't clear it so we can resume where we left off
+    console.log(`⏸️ Host agent: Pausing with ${this.state.narrationQueue.length} items preserved in queue`);
+    
     this.emit('host:stopped');
-    console.log('✅ Host agent stopped successfully');
+    console.log('✅ Host agent stopped successfully - queue preserved for resume');
   }
 
   public async processNewsItem(item: NewsItem): Promise<void> {
@@ -346,9 +349,23 @@ export class HostAgentService extends EventEmitter {
   }
 
   public clearQueue(): void {
-    console.log('🗑️ Clearing narration queue');
+    console.log(`🗑️ Clearing narration queue (${this.state.narrationQueue.length} items)`);
     this.state.narrationQueue = [];
     this.emit('queue:updated', 0);
+  }
+
+  public getQueueStatus(): {
+    length: number;
+    isProcessing: boolean;
+    isActive: boolean;
+    currentNarration?: string;
+  } {
+    return {
+      length: this.state.narrationQueue.length,
+      isProcessing: !!this.state.currentNarration,
+      isActive: this.state.isActive,
+      currentNarration: this.state.currentNarration?.id
+    };
   }
 
   // 🎯 DUPLICATE DETECTION UTILITIES
@@ -808,6 +825,13 @@ export class HostAgentService extends EventEmitter {
       console.log(`📡 Starting character-by-character streaming at ${Math.round(1000/(this.TIMING_CONFIG.CHARACTER_STREAMING_DELAY_MS/5))} WPM...`);
       
       for (let i = 0; i < text.length; i++) {
+        // Check if service is still active before each character
+        if (!this.state.isActive) {
+          console.log('⏸️ Host agent: Stopping character streaming - service is inactive');
+          isStreaming = false;
+          return;
+        }
+        
         streamingBuffer += text[i];
         
         // Emit each character addition
@@ -841,6 +865,12 @@ export class HostAgentService extends EventEmitter {
         },
         // onComplete callback  
         async (fullText: string) => {
+          // Check if service is still active before continuing
+          if (!this.state.isActive) {
+            console.log('⏸️ Host agent: LLM generation complete but service is inactive - stopping');
+            return;
+          }
+          
           console.log(`🤖 LLM generation completed, starting controlled streaming of ${fullText.length} characters...`);
           
           // Start character-by-character streaming for precise WPM control
@@ -868,7 +898,11 @@ export class HostAgentService extends EventEmitter {
           
           // Add post-narration delay for more natural pacing
           setTimeout(() => {
-            this.processQueue();
+            if (this.state.isActive) {
+              this.processQueue();
+            } else {
+              console.log('⏸️ Host agent: Skipping queue processing - service is inactive');
+            }
           }, this.TIMING_CONFIG.POST_NARRATION_DELAY_MS);
         },
         // onError callback
@@ -881,7 +915,11 @@ export class HostAgentService extends EventEmitter {
           this.state.currentNarration = null;
           
           setTimeout(() => {
-            this.processQueue();
+            if (this.state.isActive) {
+              this.processQueue();
+            } else {
+              console.log('⏸️ Host agent: Skipping queue processing - service is inactive');
+            }
           }, 1000);
         }
       );
@@ -1097,7 +1135,13 @@ Focus on: What's new, why it matters, and how it advances the story.
   }
 
   private async processQueue(): Promise<void> {
-    console.log(`🎯 processQueue called: ${this.state.narrationQueue.length} items in queue, current narration: ${this.state.currentNarration?.id || 'none'}`);
+    console.log(`🎯 processQueue called: ${this.state.narrationQueue.length} items in queue, current narration: ${this.state.currentNarration?.id || 'none'}, isActive: ${this.state.isActive}`);
+    
+    // FIRST CHECK: Don't process if service is inactive
+    if (!this.state.isActive) {
+      console.log(`⏸️ processQueue skipping - service is inactive`);
+      return;
+    }
     
     // Don't process if queue is empty or we're already processing a narration
     if (this.state.narrationQueue.length === 0 || this.state.currentNarration) {
@@ -1126,18 +1170,36 @@ Focus on: What's new, why it matters, and how it advances the story.
       } else {
         console.error('❌ No original item found in queued narration metadata');
         this.state.currentNarration = null;
-        setTimeout(() => this.processQueue(), this.TIMING_CONFIG.QUEUE_RETRY_DELAY_MS);
+        setTimeout(() => {
+          if (this.state.isActive) {
+            this.processQueue();
+          } else {
+            console.log('⏸️ Host agent: Skipping queue processing - service is inactive');
+          }
+        }, this.TIMING_CONFIG.QUEUE_RETRY_DELAY_MS);
       }
       
     } catch (error) {
       console.error('❌ Error processing queue:', error);
       this.emit('error', error as Error);
       this.state.currentNarration = null;
-      setTimeout(() => this.processQueue(), this.TIMING_CONFIG.QUEUE_RETRY_DELAY_MS);
+      setTimeout(() => {
+        if (this.state.isActive) {
+          this.processQueue();
+        } else {
+          console.log('⏸️ Host agent: Skipping queue processing - service is inactive');
+        }
+      }, this.TIMING_CONFIG.QUEUE_RETRY_DELAY_MS);
     }
   }
 
   private async streamExistingNarration(narration: HostNarration): Promise<void> {
+    // Check if service is still active before starting
+    if (!this.state.isActive) {
+      console.log('⏸️ Host agent: Skipping existing narration streaming - service is inactive');
+      return;
+    }
+    
     const text = narration.narrative;
     let currentText = '';
     
@@ -1148,6 +1210,12 @@ Focus on: What's new, why it matters, and how it advances the story.
     
     // Stream the existing text character by character at a readable speed
     for (let i = 0; i < text.length; i++) {
+      // Check if service is still active before each character
+      if (!this.state.isActive) {
+        console.log('⏸️ Host agent: Stopping existing narration streaming - service is inactive');
+        return;
+      }
+      
       currentText += text[i];
       
       this.emit('narration:streaming', {
@@ -1171,7 +1239,11 @@ Focus on: What's new, why it matters, and how it advances the story.
     
     // Process next item in queue after a brief pause
     setTimeout(() => {
-      this.processQueue();
+      if (this.state.isActive) {
+        this.processQueue();
+      } else {
+        console.log('⏸️ Host agent: Skipping queue processing - service is inactive');
+      }
     }, 1000); // 1 second pause between narrations
   }
 

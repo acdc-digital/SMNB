@@ -14,6 +14,8 @@ const config: Config = {
       },
       fontFamily: {
         'sans': ['-apple-system', 'SF Pro Display', 'SF Pro Text', 'system-ui', 'sans-serif'],
+        'libre-baskerville': ['Libre Baskerville', 'serif'],
+        'work-sans': ['Work Sans', 'sans-serif'],
       },
       keyframes: {
         'slide-in-top': {

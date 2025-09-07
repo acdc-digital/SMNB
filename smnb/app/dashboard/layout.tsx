@@ -18,9 +18,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex flex-col h-screen font-sf text-xs overflow-hidden">
       {/* Top thin border / bar */}
-      <div className="w-full h-8 flex items-center gap-3 px-3 text-foreground/60 border-b border-black/10 dark:border-white/10 bg-[#181818]">
-        <Fingerprint className="h-4 w-4 text-[#858585] border-1 border-[#858585] rounded-xs p-0.5" />
-        <span className="text-[#858585] font-medium text-xs">SMNB Terminal</span>
+      <div className="w-full h-10 flex items-center gap-3 px-3 text-foreground/60 border-b border-black/10 dark:border-white/10 bg-[#181818]">
+        <Fingerprint className="h-5.25 w-5.25 text-[#858585] border-1 border-[#858585] rounded-xs p-0.5" />
+        <span className="text-[#858585] font-light text-base font-sans">SMNB Terminal</span>
         <div className="w-2 h-2 rounded-full bg-green-600"></div>
         <div className="ml-auto flex items-center gap-4">
           <ThemeToggle />

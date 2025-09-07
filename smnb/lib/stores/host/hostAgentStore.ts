@@ -131,6 +131,9 @@ interface HostAgentState {
   clearNarrationHistory: () => void;
   cleanup: () => void;
   
+  // State management
+  clearAllState: () => void;
+  
   // Countdown actions
   startCountdown: (seconds: number) => void;
   stopCountdown: () => void;
@@ -492,5 +495,53 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
       clearInterval(countdownInterval);
       set({ countdownInterval: null, nextStoryCountdown: 0, isGenerating: false });
     }
+  },
+  
+  // Clear all state (for database reset scenarios)
+  clearAllState: () => {
+    const { hostAgent, countdownInterval } = get();
+    
+    console.log('🗑️ COMPLETE HOST STATE RESET: Clearing all host agent state');
+    
+    // Stop countdown if running
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+    }
+    
+    // Clear the host agent's internal queue and state if available
+    if (hostAgent) {
+      hostAgent.clearQueue();
+      // Don't stop the service - just clear its queue
+    }
+    
+    set(() => ({
+      // Reset streaming state
+      currentNarration: null,
+      isStreaming: false,
+      streamingText: '',
+      streamingNarrationId: null,
+      
+      // Reset countdown state
+      nextStoryCountdown: 0,
+      countdownInterval: null,
+      isGenerating: false,
+      
+      // Reset queue and history
+      narrationQueue: [],
+      narrationHistory: [],
+      
+      // Reset statistics
+      stats: {
+        itemsProcessed: 0,
+        totalNarrations: 0,
+        queueLength: 0,
+        uptime: 0
+      },
+      
+      // Keep service state and config intact
+      // isActive, hostAgent, config stay as they are
+    }));
+    
+    console.log('✅ Complete host agent state reset completed');
   }
 }));

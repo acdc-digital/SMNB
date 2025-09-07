@@ -99,3 +99,13 @@
 .progressWidth {
   width: var(--progress-width, 0%);
 }
+
+/* Hidden scrollbar styles */
+.hiddenScrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hiddenScrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}

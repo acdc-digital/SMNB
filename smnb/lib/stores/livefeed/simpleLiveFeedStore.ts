@@ -130,6 +130,7 @@ interface SimpleLiveFeedStore {
   clearPosts: () => void;
   clearOldPosts: () => void;
   manualClearPosts: () => void; // New action for manual clearing
+  clearAllState: () => void; // New action for complete state reset
   
   // Thread-aware actions
   processPostWithThreads: (post: EnhancedRedditPost) => Promise<LiveFeedPost>;
@@ -505,6 +506,36 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
   
   clearPosts: () => {
     set({ posts: [], totalPostsFetched: 0, lastFetch: null });
+  },
+
+  clearAllState: () => {
+    set(() => {
+      console.log('🗑️ COMPLETE STATE RESET: Clearing all live feed state');
+      return {
+        // Reset posts
+        posts: [],
+        totalPostsFetched: 0,
+        lastFetch: null,
+        
+        // Reset story history 
+        storyHistory: [],
+        
+        // Reset thread state
+        activeThreads: [],
+        threadUpdateCooldown: new Map(),
+        
+        // Reset session and generate new ID
+        currentSessionId: `session-${Date.now()}`,
+        
+        // Reset status
+        isLoading: false,
+        error: null,
+        
+        // Keep user preferences (don't reset these)
+        // isLive, contentMode, selectedSubreddits, refreshInterval, maxPosts, viewMode, maxStoryHistory
+      };
+    });
+    console.log('✅ Complete live feed state reset completed');
   },
 
   manualClearPosts: () => {

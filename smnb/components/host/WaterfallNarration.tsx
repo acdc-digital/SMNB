@@ -65,8 +65,11 @@ export const WaterfallNarration: React.FC<WaterfallNarrationProps> = React.memo(
 
   return (
     <div className={`flex flex-col h-full p-0 ${className}`}>
-      {/* Scrollable content area - now takes full space */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+      {/* Scrollable content area - hidden scrollbar, content pushes down */}
+      <div 
+        ref={scrollRef} 
+        className={`flex-1 min-h-0 overflow-y-auto ${styles.hiddenScrollbar}`}
+      >
         {/* Current streaming text */}
         {isStreaming && isActive && streamingText && (
           <div className={`${styles.currentNarration} bg-blue-500/10 rounded-lg mb-6`}>

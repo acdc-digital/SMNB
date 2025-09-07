@@ -53,7 +53,7 @@ export default function Host() {
   const statusInfo = getStatusInfo();
 
   return (
-    <div className="flex-1 bg-card border border-border rounded-xs shadow-sm flex flex-col min-h-0">
+    <div className="flex-1 bg-card border border-border rounded-t-none rounded-b-lg shadow-sm flex flex-col min-h-0">
       {/* Enhanced Header with Streaming Status */}
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-3">
@@ -87,7 +87,7 @@ export default function Host() {
       </div>
 
       {/* Status footer - always visible */}
-      <div className="flex items-center px-4 py-1 text-xs bg-muted/30 border-t border-muted">
+      <div className="flex items-center px-4 py-1 text-xs bg-muted/30 border-t border-muted rounded-b-lg">
         <div className="flex items-center gap-4">
           <span className="text-muted-foreground">
             Queue: {stats.queueLength}

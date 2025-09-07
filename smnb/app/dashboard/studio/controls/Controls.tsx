@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
+import { useProducerStore } from '@/lib/stores/producer/producerStore';
 // import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore'; // Commented out - editor functionality disabled
 import { StudioMode } from '../Studio';
 import { 
@@ -52,6 +53,43 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['feed-controls', 'mode-controls']));
   const [processedPostIds, setProcessedPostIds] = useState<Set<string>>(new Set());
   
+  // Filter states for Primary and Secondary columns (acting as one list)
+  const [activeFilter, setActiveFilter] = useState<string | null>('news');
+
+  // Subreddit mappings for each filter category
+  const filterSubreddits = {
+    news: ['news', 'worldnews', 'politics', 'economics', 'breakingnews'],
+    worldnews: ['worldnews', 'geopolitics', 'europe', 'asia', 'internationalnews'],
+    tech: ['technology', 'programming', 'startups', 'gadgets', 'artificial'],
+    sports: ['sports', 'nfl', 'nba', 'soccer', 'olympics'],
+    gaming: ['gaming', 'pcgaming', 'nintendo', 'playstation', 'xbox'],
+    funny: ['funny', 'memes', 'dankmemes', 'wholesomememes', 'jokes'],
+    learning: ['todayilearned', 'explainlikeimfive', 'askscience', 'history', 'documentaries'],
+    social: ['askreddit', 'relationships', 'advice', 'socialskills', 'confession']
+  };
+
+  // Get current subreddits based on active filter
+  const getCurrentSubreddits = () => {
+    return activeFilter ? filterSubreddits[activeFilter as keyof typeof filterSubreddits] || [] : [];
+  };
+
+  // Auto-select all subreddits when filter changes
+  useEffect(() => {
+    const currentSubreddits = getCurrentSubreddits();
+    setEnabledDefaults(currentSubreddits);
+  }, [activeFilter]);
+
+  // Split subreddits between Primary (first 3, since first row is search) and Secondary (remaining)
+  const getPrimarySubreddits = () => {
+    const allSubreddits = [...enabledDefaults, ...customSubreddits];
+    return allSubreddits.slice(0, 3);
+  };
+
+  const getSecondarySubreddits = () => {
+    const allSubreddits = [...enabledDefaults, ...customSubreddits];
+    return allSubreddits.slice(3, 7);
+  };
+  
   const { 
     posts,
     isLive,
@@ -68,6 +106,12 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     stats: hostStats,
     processLiveFeedPost
   } = useHostAgentStore();
+
+  const {
+    isActive: isProducerActive,
+    startProducer,
+    stopProducer
+  } = useProducerStore();
 
   // Editor agent store - commented out
   /*
@@ -88,6 +132,29 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
   const editorStats = { totalWords: 0, sessionsCompleted: 0 };
 
   const allDefaultSubreddits = ['all', 'news', 'worldnews', 'technology', 'gaming', 'funny', 'todayilearned', 'askreddit'];
+
+  // Combined broadcast function that starts/stops both host and producer
+  const handleBroadcastToggle = async () => {
+    try {
+      if (isHostActive) {
+        // Stop both host and producer
+        console.log('🎙️ CONTROLS: Stopping broadcast - stopping both host and producer');
+        await stopHostBroadcasting();
+        if (isProducerActive) {
+          await stopProducer();
+        }
+      } else {
+        // Start both host and producer
+        console.log('🎙️ CONTROLS: Starting broadcast - starting both host and producer');
+        await startHostBroadcasting();
+        if (!isProducerActive) {
+          await startProducer();
+        }
+      }
+    } catch (error) {
+      console.error('🎙️ CONTROLS: Error toggling broadcast:', error);
+    }
+  };
 
   const controlSections: ControlSection[] = [
     {
@@ -136,6 +203,33 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     }
     setExpandedSections(newExpanded);
   }, [expandedSections]);
+
+  // Toggle filter - deactivate if already active, otherwise activate
+  const handleToggleFilter = (filter: string) => {
+    if (activeFilter === filter) {
+      // Deactivate current filter - clear all selections
+      setActiveFilter(null);
+      setEnabledDefaults([]);
+    } else {
+      // Activate new filter
+      setActiveFilter(filter);
+    }
+  };
+
+  const handleRemoveSubreddit = (subreddit: string) => {
+    // Remove from enabledDefaults
+    const updatedEnabledDefaults = enabledDefaults.filter(s => s !== subreddit);
+    setEnabledDefaults(updatedEnabledDefaults);
+    
+    // Also remove from customSubreddits if it exists there
+    const updatedCustom = customSubreddits.filter(s => s !== subreddit);
+    setCustomSubreddits(updatedCustom);
+    
+    // Update the selected subreddits
+    updateSelectedSubreddits(updatedEnabledDefaults, updatedCustom);
+    
+    console.log(`🗑️ Removed subreddit: ${subreddit}`);
+  };
 
   const handleToggleDefaultSubreddit = (subreddit: string) => {
     const updatedEnabledDefaults = enabledDefaults.includes(subreddit)
@@ -231,317 +325,302 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
   }, [enabledDefaults, customSubreddits, updateSelectedSubreddits]);
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-sm flex flex-col min-h-0">
-      {/* Header */}
-      <div className="flex items-center justify-between text-xs uppercase text-muted-foreground px-3 py-2 border-b border-border">
+    <div className="bg-card border border-border rounded-t-xs rounded-b-lg shadow-sm flex flex-col min-h-0">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <Settings className="w-4 h-4" />
-          <span>Control Panel</span>
+          <span className="text-sm font-light text-muted-foreground font-sans">Control Panel</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-400' : 'bg-gray-400'}`} />
-          <span className="text-xs">{isLive ? 'LIVE' : 'OFF'}</span>
+          <span className="text-xs text-muted-foreground/70">{isLive ? 'LIVE' : 'OFF'}</span>
         </div>
       </div>
 
-      {/* Control Sections */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-1 space-y-1">
-          {controlSections.map((section) => {
-            const Icon = section.icon;
-            const isExpanded = expandedSections.has(section.id);
-            
-            return (
-              <div key={section.id} className="space-y-1">
-                {/* Section Header */}
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded text-foreground text-sm transition-colors"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                  )}
-                  
-                  <Icon className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-                  <span className="flex-1 text-left truncate">{section.title}</span>
-                  
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(section.status)}
-                  </div>
-                </button>
-
-                {/* Section Content */}
-                {isExpanded && (
-                  <div className="ml-6 px-2 py-1 text-xs text-foreground bg-muted/20 rounded border border-muted/20">
-                    
-                    {section.id === 'feed-controls' && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => setIsLive(!isLive)}
-                            className={`px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
-                              isLive 
-                                ? 'bg-red-500 hover:bg-red-600 text-white' 
-                                : 'bg-green-500 hover:bg-green-600 text-white'
-                            }`}
-                          >
-                            {isLive ? '⏹️ Stop Feed' : '▶️ Start Feed'}
-                          </button>
-                          <div className="text-xs text-muted-foreground">
-                            {posts.length} posts loaded
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground uppercase">Content Mode</div>
-                          <div className="flex gap-1">
-                            {(['sfw', 'nsfw'] as const).map((mode) => (
-                              <button
-                                key={mode}
-                                onClick={() => setContentMode(mode)}
-                                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
-                                  contentMode === mode
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                                }`}
-                              >
-                                {mode.toUpperCase()}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mode Controls Section - Editor mode disabled */}
-                    {section.id === 'mode-controls' && (
-                      <div className="space-y-3">
-                        <div className="text-muted-foreground text-xs uppercase">Studio Mode</div>
-                        {/* Mode toggle disabled - always host mode */}
-                        {/*
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => onModeChange('host')}
-                            className={`px-3 py-2 text-xs rounded transition-colors cursor-pointer flex items-center gap-2 ${
-                              mode === 'host' 
-                                ? 'bg-blue-500 text-white border-2 border-blue-600' 
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                          >
-                            <Mic className="w-3 h-3" />
-                            Host
-                          </button>
-                          <button
-                            onClick={() => onModeChange('editor')}
-                            className={`px-3 py-2 text-xs rounded transition-colors cursor-pointer flex items-center gap-2 ${
-                              mode === 'editor' 
-                                ? 'bg-green-500 text-white border-2 border-green-600' 
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                          >
-                            <Edit3 className="w-3 h-3" />
-                            Editor
-                          </button>
-                        </div>
-                        */}
-                        <div className="px-3 py-2 text-xs rounded bg-blue-500 text-white border-2 border-blue-600 flex items-center gap-2">
-                          <Mic className="w-3 h-3" />
-                          Host Mode (Active)
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Broadcasting live news narration
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Agent Controls Section - Host or Editor based on mode */}
-                    {section.id === 'agent-controls' && mode === 'host' && (
-                      <div className="space-y-3">
-                        <div className="text-muted-foreground text-xs uppercase">Host Status</div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span>Status:</span>
-                            <span className={isHostActive ? 'text-green-400' : 'text-gray-400'}>
-                              {isHostActive ? 'Broadcasting' : 'Standby'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Narrations:</span>
-                            <span className="text-blue-400">{hostStats.totalNarrations}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Queue:</span>
-                            <span className="text-blue-400">{hostStats.queueLength}</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={isHostActive ? stopHostBroadcasting : startHostBroadcasting}
-                          className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
-                            isHostActive 
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : 'bg-blue-500 hover:bg-blue-600 text-white'
-                          }`}
-                        >
-                          {isHostActive ? '📴 Stop Broadcasting' : '📡 Start Broadcasting'}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Editor Controls Section - Commented out
-                    {section.id === 'agent-controls' && mode === 'editor' && (
-                      <div className="space-y-3">
-                        <div className="text-muted-foreground text-xs uppercase">Editor Status</div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span>Status:</span>
-                            <span className={isEditorActive ? 'text-green-400' : 'text-gray-400'}>
-                              {isEditorActive ? 'Generating' : 'Standby'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Total Words:</span>
-                            <span className="text-green-400">{editorStats.totalWords}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Sessions:</span>
-                            <span className="text-green-400">{editorStats.sessionsCompleted}</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={isEditorActive ? stopEditorAgent : startEditorAgent}
-                          className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
-                            isEditorActive 
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : 'bg-green-500 hover:bg-green-600 text-white'
-                          }`}
-                        >
-                          {isEditorActive ? '⏹️ Stop Editor' : '✍️ Start Editor'}
-                        </button>
-                      </div>
-                    )}
-                    */}
-
-                    {/* Keep existing host-controls section for backward compatibility */}
-                    {section.id === 'host-controls' && (
-                      <div className="space-y-3">
-                        <div className="text-muted-foreground text-xs uppercase">Host Status</div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span>Status:</span>
-                            <span className={isHostActive ? 'text-green-400' : 'text-gray-400'}>
-                              {isHostActive ? 'Broadcasting' : 'Standby'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Narrations:</span>
-                            <span className="text-blue-400">{hostStats.totalNarrations}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Queue:</span>
-                            <span className="text-blue-400">{hostStats.queueLength}</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={isHostActive ? stopHostBroadcasting : startHostBroadcasting}
-                          className={`w-full px-3 py-1 text-xs rounded transition-colors cursor-pointer ${
-                            isHostActive 
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : 'bg-blue-500 hover:bg-blue-600 text-white'
-                          }`}
-                        >
-                          {isHostActive ? '📴 Stop Broadcasting' : '📡 Start Broadcasting'}
-                        </button>
-                      </div>
-                    )}
-
-                    {section.id === 'subreddit-manager' && (
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <div className="text-muted-foreground text-xs uppercase">Default Subreddits</div>
-                          <div className="grid grid-cols-2 gap-1">
-                            {allDefaultSubreddits.map((subreddit) => (
-                              <button
-                                key={subreddit}
-                                onClick={() => handleToggleDefaultSubreddit(subreddit)}
-                                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
-                                  enabledDefaults.includes(subreddit)
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                                }`}
-                              >
-                                r/{subreddit}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <div className="text-muted-foreground text-xs uppercase">Add Custom</div>
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={newSubreddit}
-                              onChange={(e) => setNewSubreddit(e.target.value)}
-                              onKeyPress={(e) => e.key === 'Enter' && handleAddSubreddit()}
-                              placeholder="subreddit name"
-                              className="flex-1 px-2 py-1 text-xs bg-background border border-border rounded"
-                            />
-                            <button
-                              onClick={handleAddSubreddit}
-                              className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors cursor-pointer"
-                            >
-                              Add
-                            </button>
-                          </div>
-                          {customSubreddits.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {customSubreddits.map((subreddit) => (
-                                <button
-                                  key={subreddit}
-                                  onClick={() => setCustomSubreddits(customSubreddits.filter(s => s !== subreddit))}
-                                  className="px-2 py-1 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors cursor-pointer"
-                                >
-                                  r/{subreddit} ×
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {section.id === 'system-stats' && (
-                      <div className="space-y-2">
-                        <div className="text-muted-foreground text-xs uppercase">Statistics</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex justify-between">
-                            <span>Posts:</span>
-                            <span className="text-blue-400">{posts.length}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Sources:</span>
-                            <span className="text-blue-400">{enabledDefaults.length + customSubreddits.length}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Status:</span>
-                            <span className={isLive ? 'text-green-400' : 'text-gray-400'}>
-                              {isLive ? 'Running' : 'Stopped'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Mode:</span>
-                            <span className="text-blue-400">{contentMode.toUpperCase()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+      {/* Horizontal Table Layout - Custom Column Widths */}
+      <div className="p-3">
+        <div className="grid grid-cols-[minmax(0,0.5fr)_0.7fr_0.6fr_1fr_0.75fr] gap-3 h-full">
+          
+          {/* Column 1: Master Live Control */}
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">System</div>
+            <div className="bg-[#1a1a1a] rounded-sm px-1 py-3 border border-border/20 text-center space-y-2">
+              <div className={`w-4 h-4 rounded-full mx-auto ${(isLive && isHostActive) ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground/50">Feed: {posts.length}</div>
+                <div className="text-xs text-muted-foreground/50">Queue: {hostStats.queueLength}</div>
               </div>
-            );
-          })}
+              <button
+                onClick={() => {
+                  if (isLive && isHostActive) {
+                    // Stop everything
+                    setIsLive(false);
+                    handleBroadcastToggle();
+                  } else {
+                    // Start everything
+                    if (!isLive) setIsLive(true);
+                    if (!isHostActive) handleBroadcastToggle();
+                  }
+                }}
+                className={`px-2 py-1 text-xs rounded-sm transition-colors cursor-pointer ${
+                  (isLive && isHostActive)
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                }`}
+              >
+                {(isLive && isHostActive) ? 'Stop Live' : 'Go Live'}
+              </button>
+            </div>
+            {/* Content Mode Toggle */}
+            <div className="flex gap-1">
+              {(['sfw', 'nsfw'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setContentMode(mode)}
+                  className={`flex-1 px-1 py-1 text-xs rounded-sm transition-colors cursor-pointer ${
+                    contentMode === mode
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : 'bg-[#1a1a1a] text-muted-foreground/50 hover:text-muted-foreground/70'
+                  }`}
+                >
+                  {mode.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Add Subreddits */}
+          <div className="space-y-2 min-w-0">
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">Add Subreddits</div>
+            <div className="rounded-sm px-0 space-y-1">
+              {[0, 1, 2, 3].map((index) => {
+                // First row (index 0) is search input
+                if (index === 0) {
+                  return (
+                    <div key="add-input" className="flex gap-1">
+                      <input
+                        type="text"
+                        placeholder="add"
+                        className="flex-1 px-1 py-1 text-xs bg-[#1a1a1a] border border-border/20 rounded-sm text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-0"
+                      />
+                      <button
+                        className="px-1 py-1 text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
+                  );
+                }
+                
+                // Remaining rows (index 1, 2, 3) show subreddits (offset by -1)
+                const subreddit = getPrimarySubreddits()[index - 1];
+                return subreddit ? (
+                  enabledDefaults.includes(subreddit) ? (
+                    <div
+                      key={subreddit}
+                      className="w-full px-2 py-1.25 text-xs rounded-sm bg-green-500/20 text-green-400 flex items-center gap-2 group relative"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-green-400" />
+                      <span className="truncate">{subreddit}</span>
+                      <button
+                        onClick={() => handleRemoveSubreddit(subreddit)}
+                        className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center text-red-400 hover:text-red-300 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      key={subreddit}
+                      className="w-full px-2 py-1.25 text-xs rounded-sm transition-colors cursor-pointer flex items-center gap-2 bg-[#0d0d0d] text-muted-foreground/50 hover:text-muted-foreground/70 group relative"
+                      onClick={() => handleToggleDefaultSubreddit(subreddit)}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gray-400" />
+                      <span className="truncate">{subreddit}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSubreddit(subreddit);
+                        }}
+                        className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center text-red-400 hover:text-red-300 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <div
+                    key={`empty-${index}`}
+                    className="w-full px-2 py-1.25 text-xs rounded-sm border border-border/20 text-muted-foreground/30 italic flex items-center"
+                  >
+                    subreddit...
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* 4 Filter Badges at bottom of Primary column */}
+            <div className="flex gap-1">
+              {['news', 'worldnews', 'tech', 'sports'].map((filter, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleToggleFilter(filter)}
+                  className={`flex-1 px-1 py-1 text-xs rounded-sm transition-colors cursor-pointer ${
+                    activeFilter === filter
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-[#1a1a1a] text-muted-foreground/50 hover:text-muted-foreground/70'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 3: Secondary Sources (no header) */}
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">&nbsp;</div>
+            <div className="rounded-sm px-0 space-y-1">
+              {[0, 1, 2, 3].map((index) => {
+                const subreddit = getSecondarySubreddits()[index];
+                return subreddit ? (
+                  enabledDefaults.includes(subreddit) ? (
+                    <div
+                      key={subreddit}
+                      className="w-full px-2 py-1 text-xs rounded-sm bg-green-500/20 text-green-400 flex items-center gap-2 group relative"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-green-400" />
+                      <span className="truncate">{subreddit}</span>
+                      <button
+                        onClick={() => handleRemoveSubreddit(subreddit)}
+                        className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center text-red-400 hover:text-red-300 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      key={subreddit}
+                      className="w-full px-2 py-1 text-xs rounded-sm transition-colors cursor-pointer flex items-center gap-2 bg-[#0d0d0d] text-muted-foreground/50 hover:text-muted-foreground/70 group relative"
+                      onClick={() => handleToggleDefaultSubreddit(subreddit)}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gray-400" />
+                      <span className="truncate">{subreddit}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSubreddit(subreddit);
+                        }}
+                        className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center text-red-400 hover:text-red-300 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <div
+                    key={`empty-${index}`}
+                    className="w-full px-2 py-1.25 text-xs rounded-sm border border-border/20 text-muted-foreground/30 italic flex items-center"
+                  >
+                    subreddit...
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* 4 Filter Badges at bottom of Secondary column */}
+            <div className="flex gap-1">
+              {['gaming', 'funny', 'learning', 'social'].map((filter, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleToggleFilter(filter)}
+                  className={`flex-1 px-1 py-1 text-xs rounded-sm transition-colors cursor-pointer ${
+                    activeFilter === filter
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-[#1a1a1a] text-muted-foreground/50 hover:text-muted-foreground/70'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 4: Search */}
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">Search</div>
+            <div className="space-y-1">
+              {/* Search Input - matching Custom input */}
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  placeholder="search"
+                  className="flex-1 px-1 py-1 text-xs bg-[#1a1a1a] border border-border/20 rounded-sm text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-0"
+                />
+                <button
+                  className="px-1 py-1 text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
+              
+              {/* Search Terms Container - Empty badges for custom searches */}
+              <div className="space-y-1">
+                {/* Empty placeholder badges - will be populated with custom searches */}
+                <div className="px-2 py-1 mr-4.5 text-xs rounded-sm bg-[#1a1a1a] text-muted-foreground/30 italic border border-border/20">
+                  Custom...
+                </div>
+                <div className="px-2 py-1 mr-4.5 text-xs rounded-sm bg-[#1a1a1a] text-muted-foreground/30 italic border border-border/20">
+                  Custom...
+                </div>
+                <div className="px-2 py-1 mr-4.5 text-xs rounded-sm bg-[#1a1a1a] text-muted-foreground/30 italic border border-border/20">
+                  Custom...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Column 5: Stats */}
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">Stats</div>
+            <div className="space-y-2">
+              {/* Custom subreddits list */}
+              <div className="space-y-1 max-h-16 overflow-y-auto">
+                {customSubreddits.map((subreddit) => (
+                  <button
+                    key={subreddit}
+                    onClick={() => setCustomSubreddits(customSubreddits.filter(s => s !== subreddit))}
+                    className="w-full px-2 py-1 text-xs rounded-sm transition-colors cursor-pointer flex items-center gap-2 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                    <span className="truncate flex-1">{subreddit}</span>
+                    <span className="text-yellow-300">×</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Stats Panel */}
+              <div className="bg-[#1a1a1a] rounded-sm px-2 py-2 border border-border/20 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70">Sources</span>
+                  <span className="text-xs font-mono text-muted-foreground">{enabledDefaults.length + customSubreddits.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70">Stories</span>
+                  <span className="text-xs font-mono text-muted-foreground">{hostStats.totalNarrations}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70">Mode</span>
+                  <span className="text-xs font-mono text-muted-foreground">HOST</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70">Content</span>
+                  <span className="text-xs font-mono text-muted-foreground">{contentMode.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

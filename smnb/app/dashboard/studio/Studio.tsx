@@ -21,7 +21,7 @@ export default function Studio() {
       <div className="flex-1 flex flex-col p-2 min-h-0">
         
         {/* Two Column Layout - Takes remaining space above controls */}
-        <div className="flex-1 flex gap-2 mb-4 min-h-0">
+        <div className="flex-1 flex gap-2 mb-2 min-h-0">
           {/* Column 1 - Host only (editor functionality disabled) */}
           {/* {mode === 'host' ? <Host /> : <Editor />} // Commented out - always show Host */}
           <div className="flex-[35] flex flex-col min-h-0">
