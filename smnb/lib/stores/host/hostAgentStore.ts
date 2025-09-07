@@ -85,6 +85,9 @@ interface HostAgentState {
   isActive: boolean;
   currentNarration: HostNarration | null;
   
+  // Audio control state
+  isMicActive: boolean;
+  
   // Streaming state
   isStreaming: boolean;
   streamingText: string;
@@ -120,6 +123,9 @@ interface HostAgentState {
   processRedditPost: (post: EnhancedRedditPost) => Promise<void>;
   processLiveFeedPost: (post: EnhancedRedditPost) => void;
   
+  // Audio control actions
+  toggleMic: () => void;
+  
   // Streaming actions
   addToQueue: () => void;
   processNextInQueue: () => void;
@@ -144,6 +150,9 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
   hostAgent: null,
   isActive: false,
   currentNarration: null,
+  
+  // Audio control state  
+  isMicActive: false,
   
   // Streaming state
   isStreaming: false,
@@ -543,5 +552,14 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
     }));
     
     console.log('✅ Complete host agent state reset completed');
+  },
+  
+  // Toggle mic active state
+  toggleMic: () => {
+    set((state) => {
+      const newMicState = !state.isMicActive;
+      console.log(`🎤 HOST: Mic ${newMicState ? 'activated' : 'deactivated'}`);
+      return { isMicActive: newMicState };
+    });
   }
 }));
