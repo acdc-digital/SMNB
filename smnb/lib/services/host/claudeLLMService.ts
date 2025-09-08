@@ -6,10 +6,12 @@
  * 
  * Client-side service that communicates with our Claude API route
  * This keeps API keys secure on the server while providing Claude functionality
+ * Now supports user-provided API keys from the API key store
  */
 
 import { HostNarration } from '@/lib/types/hostAgent';
 import { tokenCountingService, TokenUsageMetrics } from '../tokenCountingService';
+import { useApiKeyStore } from '@/lib/stores/apiKeyStore';
 
 export interface LLMOptions {
   temperature?: number;
@@ -35,6 +37,27 @@ export class ClaudeLLMService {
     console.log('✅ Claude LLM service initialized (client-side)');
   }
 
+  // Helper method to get API key from store
+  private getApiKey(): string | null {
+    const store = useApiKeyStore.getState();
+    // Only return user API key if the toggle is enabled AND we have a valid key
+    const userKey = store.isUserApiKeyEnabled() && store.hasValidKey() ? store.getValidApiKey() : null;
+    
+    if (userKey) {
+      console.log('🔑 Using USER-PROVIDED API key:', userKey.slice(0, 12) + '...');
+    } else {
+      console.log('🔑 Using ENVIRONMENT API key (user toggle:', store.isUserApiKeyEnabled() ? 'ON but invalid' : 'OFF)');
+    }
+    
+    return userKey;
+  }
+
+  // Helper method to prepare request body with API key
+  private prepareRequestBody(baseBody: any): any {
+    const apiKey = this.getApiKey();
+    return apiKey ? { ...baseBody, apiKey } : baseBody;
+  }
+
   async generate(prompt: string, options: LLMOptions = {}): Promise<string> {
     try {
       console.log('🤖 Generating narration with Claude...');
@@ -56,7 +79,7 @@ export class ClaudeLLMService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.prepareRequestBody({
           action: 'generate',
           prompt,
           options: {
@@ -64,7 +87,7 @@ export class ClaudeLLMService {
             temperature: options.temperature || 0.7,
             maxTokens: options.maxTokens || 200,
           }
-        })
+        }))
       });
 
       if (!response.ok) {
@@ -145,14 +168,14 @@ export class ClaudeLLMService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.prepareRequestBody({
           action: 'stream',
           prompt,
           options: {
             ...options,
             systemPrompt
           }
-        })
+        }))
       });
 
       if (!response.ok) {
@@ -252,10 +275,10 @@ export class ClaudeLLMService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.prepareRequestBody({
           action: 'analyze',
           prompt: content
-        })
+        }))
       });
 
       if (!response.ok) {
@@ -326,9 +349,9 @@ export class ClaudeLLMService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.prepareRequestBody({
           action: 'test'
-        })
+        }))
       });
 
       if (!response.ok) {
@@ -362,9 +385,9 @@ export class ClaudeLLMService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.prepareRequestBody({
           action: 'test'
-        })
+        }))
       });
 
       if (response.status === 500) {

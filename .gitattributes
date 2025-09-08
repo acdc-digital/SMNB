@@ -1,0 +1,167 @@
+# Git Attributes for SMNB Project
+# Ensures consistent line endings and proper language detection
+
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Force LF line endings for all text files (cross-platform consistency)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.mdx text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.xml text eol=lf
+*.svg text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.env text eol=lf
+*.env.* text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+
+# Git files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.gitmodules text eol=lf
+
+# Config files
+*.config.js text eol=lf
+*.config.ts text eol=lf
+*.config.mjs text eol=lf
+.eslintrc* text eol=lf
+.prettierrc* text eol=lf
+.editorconfig text eol=lf
+.npmrc text eol=lf
+.nvmrc text eol=lf
+.browserslistrc text eol=lf
+
+# Package files
+package.json text eol=lf
+package-lock.json text eol=lf linguist-generated=true
+pnpm-lock.yaml text eol=lf linguist-generated=true
+yarn.lock text eol=lf linguist-generated=true
+
+# Next.js specific
+next.config.js text eol=lf
+next.config.mjs text eol=lf
+next.config.ts text eol=lf
+next-env.d.ts text eol=lf
+
+# Convex specific
+convex.json text eol=lf
+convex/*.ts text eol=lf
+convex/_generated/* linguist-generated=true
+
+# Documentation
+*.md text eol=lf diff=markdown
+*.mdx text eol=lf diff=markdown
+README.md text eol=lf diff=markdown
+LICENSE text eol=lf
+CHANGELOG.md text eol=lf diff=markdown
+
+# Source maps
+*.map binary linguist-generated=true
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# Videos
+*.mp4 binary
+*.webm binary
+*.mov binary
+
+# Audio
+*.mp3 binary
+*.wav binary
+*.ogg binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+
+# PDFs and documents
+*.pdf binary
+*.doc binary
+*.docx binary
+
+# Compiled/build outputs
+*.min.js binary linguist-generated=true
+*.min.css binary linguist-generated=true
+.next/* linguist-generated=true
+out/* linguist-generated=true
+dist/* linguist-generated=true
+build/* linguist-generated=true
+
+# Language statistics (GitHub language detection)
+# Helps GitHub properly categorize your repository
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+*.js linguist-language=JavaScript
+*.jsx linguist-language=JavaScript
+*.css linguist-language=CSS
+tailwind.config.* linguist-language=JavaScript
+postcss.config.* linguist-language=JavaScript
+
+# Vendor files (exclude from language statistics)
+**/vendor/* linguist-vendored
+**/node_modules/* linguist-vendored
+**/.pnpm/* linguist-vendored
+public/vendor/* linguist-vendored
+
+# Generated files (exclude from diffs and language stats)
+**/generated/* linguist-generated
+**/_generated/* linguist-generated
+*.generated.* linguist-generated
+*-lock.json linguist-generated
+*-lock.yaml linguist-generated
+
+# Documentation (include in language statistics)
+docs/* linguist-documentation
+*.md linguist-documentation=false
+
+# Diff settings for better readability
+*.md diff=markdown
+*.mdx diff=markdown
+*.json diff=json
+*.css diff=css
+*.html diff=html
+
+# Export ignore (files to exclude from archives)
+.github export-ignore
+.vscode export-ignore
+.husky export-ignore
+tests export-ignore
+*.test.ts export-ignore
+*.test.tsx export-ignore
+*.spec.ts export-ignore
+*.spec.tsx export-ignore
+.env.example export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.prettierrc export-ignore
+.eslintrc export-ignore

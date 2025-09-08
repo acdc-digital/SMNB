@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
 import { useProducerStore } from '@/lib/stores/producer/producerStore';
+import { useApiKeyStore } from '@/lib/stores/apiKeyStore';
 // import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore'; // Commented out - editor functionality disabled
 import { StudioMode } from '../Studio';
 import { 
@@ -19,8 +20,11 @@ import {
   Zap,
   Users,
   Mic,
-  Edit3
+  Edit3,
+  Play,
+  Pause
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { EnhancedRedditPost } from '@/lib/types/enhancedRedditPost';
 import { LiveFeedPost } from '@/lib/stores/livefeed/simpleLiveFeedStore';
 
@@ -112,6 +116,12 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     startProducer,
     stopProducer
   } = useProducerStore();
+
+  const {
+    useUserApiKey,
+    setUseUserApiKey,
+    hasValidKey: hasValidApiKey
+  } = useApiKeyStore();
 
   // Editor agent store - commented out
   /*
@@ -344,31 +354,53 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
           {/* Column 1: Master Live Control */}
           <div className="space-y-2">
             <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">System</div>
-            <div className="bg-[#1a1a1a] rounded-sm px-1 py-3 border border-border/20 text-center space-y-2">
+            <div 
+              className={`bg-[#1a1a1a] rounded-sm px-1 py-3 border border-border/20 text-center space-y-2 ${
+                !(isLive && isHostActive) ? 'cursor-pointer hover:bg-[#1f1f1f] transition-colors' : ''
+              }`}
+              onClick={() => {
+                // Only handle click if not active (big button to start)
+                if (!(isLive && isHostActive)) {
+                  if (!isLive) setIsLive(true);
+                  if (!isHostActive) handleBroadcastToggle();
+                }
+              }}
+            >
               <div className={`w-4 h-4 rounded-full mx-auto ${(isLive && isHostActive) ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground/50">Feed: {posts.length}</div>
                 <div className="text-xs text-muted-foreground/50">Queue: {hostStats.queueLength}</div>
               </div>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent container click
                   if (isLive && isHostActive) {
-                    // Stop everything
+                    // Stop when active
                     setIsLive(false);
                     handleBroadcastToggle();
                   } else {
-                    // Start everything
+                    // Start when inactive
                     if (!isLive) setIsLive(true);
                     if (!isHostActive) handleBroadcastToggle();
                   }
                 }}
-                className={`px-2 py-1 text-xs rounded-sm transition-colors cursor-pointer ${
+                className={`px-2 py-1 text-xs rounded-sm transition-colors cursor-pointer relative ${
                   (isLive && isHostActive)
-                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-card text-muted-foreground border border-border hover:bg-card/80'
                 }`}
               >
-                {(isLive && isHostActive) ? 'Stop Live' : 'Go Live'}
+                {(isLive && isHostActive) ? (
+                  <>
+                    <Pause className="w-3 h-3 absolute left-1 top-1/2 transform -translate-y-1/2" />
+                    <span className="text-center w-full pl-4">Stop</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3 absolute left-1 top-1/2 transform -translate-y-1/2" />
+                    <span className="text-center w-full pl-4">Live</span>
+                  </>
+                )}
               </button>
             </div>
             {/* Content Mode Toggle */}
@@ -580,9 +612,9 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
             </div>
           </div>
 
-          {/* Column 5: Stats */}
+          {/* Column 5: Config */}
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">Stats</div>
+            <div className="text-xs text-muted-foreground/70 uppercase tracking-wider">Config</div>
             <div className="space-y-2">
               {/* Custom subreddits list */}
               <div className="space-y-1 max-h-16 overflow-y-auto">
@@ -600,7 +632,7 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
               </div>
 
               {/* Stats Panel */}
-              <div className="bg-[#1a1a1a] rounded-sm px-2 py-2 border border-border/20 space-y-1">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground/70">Sources</span>
                   <span className="text-xs font-mono text-muted-foreground">{enabledDefaults.length + customSubreddits.length}</span>
@@ -616,6 +648,27 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground/70">Content</span>
                   <span className="text-xs font-mono text-muted-foreground">{contentMode.toUpperCase()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70">API</span>
+                  <div className="flex items-center gap-1">
+                    <Switch
+                      checked={useUserApiKey}
+                      onCheckedChange={setUseUserApiKey}
+                      className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-600"
+                      style={{ transform: 'scale(0.7)' }}
+                    />
+                    <span className={`text-xs font-mono ${
+                      useUserApiKey 
+                        ? (hasValidApiKey() ? 'text-green-400' : 'text-red-400')
+                        : 'text-muted-foreground'
+                    }`}>
+                      {useUserApiKey 
+                        ? (hasValidApiKey() ? 'USER' : 'ERR')
+                        : 'ENV'
+                      }
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
