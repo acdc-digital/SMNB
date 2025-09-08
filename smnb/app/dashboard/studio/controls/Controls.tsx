@@ -109,7 +109,9 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     start: startHostBroadcasting,
     stop: stopHostBroadcasting,
     stats: hostStats,
-    processLiveFeedPost
+    processLiveFeedPost,
+    getQueueStatus,
+    getQueueBySubreddit
   } = useHostAgentStore();
 
   const {
@@ -127,6 +129,7 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
   const {
     initializeQueueManager,
     clearQueueBySubreddit,
+    clearAllQueues,
     refreshStats,
     getDetailedStatus
   } = useQueueManagerStore();
@@ -697,6 +700,64 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
                       }
                     </span>
                   </div>
+                </div>
+                
+                {/* Queue Status */}
+                <div className="border-t border-border/20 pt-1 mt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground/70">Queue</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {(() => {
+                          const queueStatus = getQueueStatus();
+                          const hostQueue = getQueueBySubreddit();
+                          const totalItems = Object.values(hostQueue).reduce((sum: number, count: number) => sum + count, 0);
+                          return totalItems;
+                        })()}
+                      </span>
+                      {(() => {
+                        const hostQueue = getQueueBySubreddit();
+                        const totalItems = Object.values(hostQueue).reduce((sum: number, count: number) => sum + count, 0);
+                        return totalItems > 0 ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const result = await clearAllQueues();
+                                console.log(`✅ Cleared all queues: ${result.totalCleared} items`);
+                              } catch (error) {
+                                console.error('❌ Failed to clear all queues:', error);
+                              }
+                            }}
+                            className="text-xs px-1 py-0.5 text-red-400 hover:text-red-300 transition-colors cursor-pointer bg-red-500/10 rounded"
+                            title="Clear all queue items"
+                          >
+                            ×
+                          </button>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+                  {(() => {
+                    const hostQueue = getQueueBySubreddit();
+                    const topSubreddits = Object.entries(hostQueue)
+                      .sort(([,a], [,b]) => (b as number) - (a as number))
+                      .slice(0, 3);
+                    
+                    return topSubreddits.length > 0 ? (
+                      <div className="mt-1 space-y-0.5">
+                        {topSubreddits.map(([subreddit, count]) => (
+                          <div key={subreddit} className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground/50 truncate max-w-16">
+                              r/{subreddit}
+                            </span>
+                            <span className="text-xs font-mono text-muted-foreground/70">
+                              {count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             </div>
