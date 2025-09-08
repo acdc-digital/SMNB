@@ -134,6 +134,12 @@ interface HostAgentState {
   // State management
   clearAllState: () => void;
   
+  // Queue management actions
+  clearQueue: () => void;
+  clearQueueBySubreddit: (subreddit: string) => void;
+  getQueueStatus: () => { length: number; isProcessing: boolean; isActive: boolean; currentNarration?: string };
+  getQueueBySubreddit: () => { [subreddit: string]: number };
+  
   // Countdown actions
   startCountdown: (seconds: number) => void;
   stopCountdown: () => void;
@@ -543,5 +549,42 @@ export const useHostAgentStore = create<HostAgentState>((set, get) => ({
     }));
     
     console.log('✅ Complete host agent state reset completed');
+  },
+
+  // Queue management methods
+  clearQueue: () => {
+    const { hostAgent } = get();
+    if (hostAgent) {
+      hostAgent.clearQueue();
+      console.log('🗑️ HOST STORE: Queue cleared via store action');
+    } else {
+      console.warn('⚠️ HOST STORE: Cannot clear queue - host agent not initialized');
+    }
+  },
+
+  clearQueueBySubreddit: (subreddit: string) => {
+    const { hostAgent } = get();
+    if (hostAgent) {
+      hostAgent.clearQueueBySubreddit(subreddit);
+      console.log(`🗑️ HOST STORE: Queue cleared for subreddit r/${subreddit} via store action`);
+    } else {
+      console.warn('⚠️ HOST STORE: Cannot clear queue by subreddit - host agent not initialized');
+    }
+  },
+
+  getQueueStatus: () => {
+    const { hostAgent } = get();
+    if (hostAgent) {
+      return hostAgent.getQueueStatus();
+    }
+    return { length: 0, isProcessing: false, isActive: false };
+  },
+
+  getQueueBySubreddit: () => {
+    const { hostAgent } = get();
+    if (hostAgent) {
+      return hostAgent.getQueueBySubreddit();
+    }
+    return {};
   }
 }));

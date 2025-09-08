@@ -354,6 +354,23 @@ export class HostAgentService extends EventEmitter {
     this.emit('queue:updated', 0);
   }
 
+  public clearQueueBySubreddit(subreddit: string): void {
+    const beforeLength = this.state.narrationQueue.length;
+    this.state.narrationQueue = this.state.narrationQueue.filter(narration => {
+      const itemSubreddit = narration.metadata?.originalItem?.subreddit;
+      return itemSubreddit !== subreddit;
+    });
+    const afterLength = this.state.narrationQueue.length;
+    const removedCount = beforeLength - afterLength;
+    
+    console.log(`🗑️ Cleared ${removedCount} narration(s) from queue for subreddit: r/${subreddit}`);
+    this.emit('queue:updated', this.state.narrationQueue.length);
+    
+    if (removedCount > 0) {
+      this.emit('queue:subreddit-cleared', { subreddit, removedCount });
+    }
+  }
+
   public getQueueStatus(): {
     length: number;
     isProcessing: boolean;
@@ -366,6 +383,19 @@ export class HostAgentService extends EventEmitter {
       isActive: this.state.isActive,
       currentNarration: this.state.currentNarration?.id
     };
+  }
+
+  public getQueueBySubreddit(): { [subreddit: string]: number } {
+    const subredditCounts: { [subreddit: string]: number } = {};
+    
+    this.state.narrationQueue.forEach(narration => {
+      const subreddit = narration.metadata?.originalItem?.subreddit;
+      if (subreddit) {
+        subredditCounts[subreddit] = (subredditCounts[subreddit] || 0) + 1;
+      }
+    });
+    
+    return subredditCounts;
   }
 
   // 🎯 DUPLICATE DETECTION UTILITIES

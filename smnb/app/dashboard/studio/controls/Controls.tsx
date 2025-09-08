@@ -8,6 +8,7 @@ import { useSimpleLiveFeedStore } from '@/lib/stores/livefeed/simpleLiveFeedStor
 import { useHostAgentStore } from '@/lib/stores/host/hostAgentStore';
 import { useProducerStore } from '@/lib/stores/producer/producerStore';
 import { useApiKeyStore } from '@/lib/stores/apiKeyStore';
+import { useQueueManagerStore } from '@/lib/stores/queueManagerStore';
 // import { useEditorAgentStore } from '@/lib/stores/host/editorAgentStore'; // Commented out - editor functionality disabled
 import { StudioMode } from '../Studio';
 import { 
@@ -123,6 +124,13 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     hasValidKey: hasValidApiKey
   } = useApiKeyStore();
 
+  const {
+    initializeQueueManager,
+    clearQueueBySubreddit,
+    refreshStats,
+    getDetailedStatus
+  } = useQueueManagerStore();
+
   // Editor agent store - commented out
   /*
   const {
@@ -226,19 +234,34 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
     }
   };
 
-  const handleRemoveSubreddit = (subreddit: string) => {
-    // Remove from enabledDefaults
-    const updatedEnabledDefaults = enabledDefaults.filter(s => s !== subreddit);
-    setEnabledDefaults(updatedEnabledDefaults);
-    
-    // Also remove from customSubreddits if it exists there
-    const updatedCustom = customSubreddits.filter(s => s !== subreddit);
-    setCustomSubreddits(updatedCustom);
-    
-    // Update the selected subreddits
-    updateSelectedSubreddits(updatedEnabledDefaults, updatedCustom);
-    
-    console.log(`🗑️ Removed subreddit: ${subreddit}`);
+  const handleRemoveSubreddit = async (subreddit: string) => {
+    try {
+      // Remove from enabledDefaults
+      const updatedEnabledDefaults = enabledDefaults.filter(s => s !== subreddit);
+      setEnabledDefaults(updatedEnabledDefaults);
+      
+      // Also remove from customSubreddits if it exists there
+      const updatedCustom = customSubreddits.filter(s => s !== subreddit);
+      setCustomSubreddits(updatedCustom);
+      
+      // Update the selected subreddits
+      updateSelectedSubreddits(updatedEnabledDefaults, updatedCustom);
+      
+      console.log(`🗑️ Removed subreddit: ${subreddit}`);
+      
+      // Clear queue items for this subreddit
+      try {
+        const result = await clearQueueBySubreddit(subreddit);
+        if (result.totalCleared > 0) {
+          console.log(`✅ Queue cleared for r/${subreddit}: ${result.totalCleared} items (Host: ${result.hostQueueCleared}, Scheduled: ${result.scheduledPostsCleared})`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to clear queue for r/${subreddit}:`, error);
+        // Don't block the UI operation if queue clearing fails
+      }
+    } catch (error) {
+      console.error(`❌ Error removing subreddit ${subreddit}:`, error);
+    }
   };
 
   const handleToggleDefaultSubreddit = (subreddit: string) => {
@@ -333,6 +356,11 @@ export default function Controls({ mode, onModeChange }: ControlsProps) {
   useEffect(() => {
     updateSelectedSubreddits(enabledDefaults, customSubreddits);
   }, [enabledDefaults, customSubreddits, updateSelectedSubreddits]);
+
+  // Initialize queue manager
+  useEffect(() => {
+    initializeQueueManager();
+  }, [initializeQueueManager]);
 
   return (
     <div className="bg-card border border-border rounded-t-xs rounded-b-lg shadow-sm flex flex-col min-h-0">
