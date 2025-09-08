@@ -13,7 +13,8 @@ import {
   Zap,
   Pin,
   GitBranch,
-  Bookmark
+  Bookmark,
+  X
 } from 'lucide-react';
 
 /**
@@ -55,6 +56,16 @@ export const StoryDisplayUtils = {
    * Get Lucide icon component for source indicator
    */
   getSourceIcon: () => Bookmark,
+
+  /**
+   * Get Lucide icon component for pin indicator
+   */
+  getPinIcon: () => Pin,
+
+  /**
+   * Get Lucide icon component for close button
+   */
+  getCloseIcon: () => X,
 
   /**
    * Format timestamp to relative time
@@ -144,6 +155,7 @@ export const StoryCardTokens = {
   // Card states
   highlighted: "border-blue-500 bg-blue-500/5 shadow-sm ring-1 ring-blue-500/20",
   normal: "border-border/50 hover:border-border hover:bg-card/50",
+  pinned: "border-yellow-500/50 bg-yellow-500/5 shadow-sm ring-1 ring-yellow-500/20",
   
   // Animation classes
   animation: "animate-slide-in-top",
@@ -157,6 +169,9 @@ export const StoryCardTokens = {
   // Content styling
   toneLabel: "text-xs text-muted-foreground font-medium uppercase tracking-wide",
   topicTag: "px-1.5 py-0.5 rounded-full text-xs bg-cyan-400/20 text-cyan-300 border border-cyan-400/40",
+  
+  // Pin indicator
+  pinnedBadge: "px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-400/20 text-yellow-300 border border-yellow-400/40",
   
   // Thread indicators
   threadUpdate: "px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-400/20 text-yellow-300 border border-yellow-400/40",
@@ -181,6 +196,10 @@ export const StoryThemes = {
   highlighted: {
     card: StoryCardTokens.highlighted, 
     content: "text-blue-900 dark:text-blue-100"
+  },
+  pinned: {
+    card: StoryCardTokens.pinned,
+    content: "text-card-foreground"
   },
   archived: {
     card: "border-border/30 bg-muted/30 opacity-75",

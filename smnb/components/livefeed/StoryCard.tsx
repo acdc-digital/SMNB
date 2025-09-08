@@ -13,14 +13,14 @@ interface StoryCardProps {
   className?: string;
   theme?: keyof typeof StoryThemes;
   showActions?: boolean;
-  onAction?: (action: 'read' | 'share' | 'bookmark', story: CompletedStory) => void;
+  onAction?: (action: 'read' | 'share' | 'bookmark' | 'pin' | 'unpin' | 'remove', story: CompletedStory) => void;
 }
 
 export default function StoryCard({ 
   story, 
   isFirst = false, 
   className,
-  theme = isFirst ? 'highlighted' : 'default',
+  theme = story.isPinned ? 'pinned' : (isFirst ? 'highlighted' : 'default'),
   showActions = false,
   onAction 
 }: StoryCardProps) {
@@ -72,6 +72,13 @@ export default function StoryCard({
           {story.tone}
         </span>
         
+        {/* Pinned indicator */}
+        {story.isPinned && (
+          <span className={StoryCardTokens.pinnedBadge}>
+            PINNED #{story.pinnedOrder}
+          </span>
+        )}
+        
         {/* Thread indicators */}
         {story.isThreadUpdate && (
           <span className={StoryCardTokens.threadUpdate}>
@@ -79,10 +86,52 @@ export default function StoryCard({
           </span>
         )}
         
+        {/* Action buttons - Pin and Remove (on hover) */}
+        <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onAction && (
+            <>
+              {/* Pin/Unpin Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(story.isPinned ? 'unpin' : 'pin', story);
+                }}
+                className={`p-1 rounded transition-colors cursor-pointer ${
+                  story.isPinned 
+                    ? 'text-yellow-400 hover:text-yellow-300' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title={story.isPinned ? 'Unpin story' : 'Pin story to top'}
+                aria-label={story.isPinned ? 'Unpin story' : 'Pin story to top'}
+              >
+                {React.createElement(StoryDisplayUtils.getPinIcon(), { 
+                  size: 14, 
+                  className: story.isPinned ? 'fill-current' : ''
+                })}
+              </button>
+              
+              {/* Remove Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction('remove', story);
+                }}
+                className="p-1 rounded transition-colors text-muted-foreground hover:text-red-400 cursor-pointer"
+                title="Remove story"
+                aria-label="Remove story"
+              >
+                {React.createElement(StoryDisplayUtils.getCloseIcon(), { 
+                  size: 14 
+                })}
+              </button>
+            </>
+          )}
+        </div>
+        
         {/* Source attribution */}
         {story.originalItem?.subreddit && (
           <span 
-            className="ml-auto flex items-center cursor-pointer p-1 rounded transition-colors"
+            className="flex items-center cursor-pointer p-1 rounded transition-colors"
             title={`Source: r/${story.originalItem.subreddit}`}
             aria-label={`Source: r/${story.originalItem.subreddit}`}
             onClick={() => setIsBookmarked(!isBookmarked)}
