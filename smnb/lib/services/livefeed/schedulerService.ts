@@ -224,6 +224,41 @@ export class SchedulerService {
       categoryDistribution,
     };
   }
+
+  /**
+   * Clear all scheduled posts for a specific subreddit
+   */
+  clearScheduledPostsBySubreddit(subreddit: string): number {
+    const beforeLength = this.scheduledPosts.length;
+    this.scheduledPosts = this.scheduledPosts.filter(post => post.subreddit !== subreddit);
+    const removedCount = beforeLength - this.scheduledPosts.length;
+    
+    console.log(`🗑️ SchedulerService: Cleared ${removedCount} scheduled post(s) for subreddit: r/${subreddit}`);
+    return removedCount;
+  }
+
+  /**
+   * Get count of scheduled posts by subreddit
+   */
+  getScheduledPostsBySubreddit(): { [subreddit: string]: number } {
+    const subredditCounts: { [subreddit: string]: number } = {};
+    
+    this.scheduledPosts.forEach(post => {
+      subredditCounts[post.subreddit] = (subredditCounts[post.subreddit] || 0) + 1;
+    });
+    
+    return subredditCounts;
+  }
+
+  /**
+   * Clear all scheduled posts (for debugging/management)
+   */
+  clearAllScheduledPosts(): number {
+    const count = this.scheduledPosts.length;
+    this.scheduledPosts = [];
+    console.log(`🗑️ SchedulerService: Cleared all ${count} scheduled posts`);
+    return count;
+  }
 }
 
 export const schedulerService = new SchedulerService();
