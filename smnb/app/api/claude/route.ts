@@ -11,21 +11,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const body = await request.json();
+    const { action, prompt, options, apiKey } = body;
+
+    // Use provided API key or fall back to environment variable
+    const effectiveApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
+    
+    // Log which API key source is being used
+    if (apiKey) {
+      console.log('🔑 SERVER: Using client-provided API key:', apiKey.slice(0, 12) + '...');
+    } else if (process.env.ANTHROPIC_API_KEY) {
+      console.log('🔑 SERVER: Using environment API key:', process.env.ANTHROPIC_API_KEY.slice(0, 12) + '...');
+    } else {
+      console.log('❌ SERVER: No API key available');
+    }
+    
+    if (!effectiveApiKey) {
       return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY not configured' },
+        { error: 'ANTHROPIC_API_KEY not configured. Please provide an API key.' },
         { status: 500 }
       );
     }
 
-    const body = await request.json();
-    const { action, prompt, options } = body;
+    // Create Anthropic client with the effective API key
+    const anthropic = new Anthropic({
+      apiKey: effectiveApiKey,
+    });
 
     if (action === 'generate') {
       const response = await anthropic.messages.create({

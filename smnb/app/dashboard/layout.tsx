@@ -7,6 +7,7 @@ import React from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { TokenCounter } from "@/components/ui/TokenCounter";
+import { ApiKeyInput } from "@/components/ui/ApiKeyInput";
 import ActivityBar from "./activityBar/ActivityBar";
 import { Fingerprint } from "lucide-react";
 
@@ -22,7 +23,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Fingerprint className="h-5.25 w-5.25 text-[#858585] border-1 border-[#858585] rounded-xs p-0.5" />
         <span className="text-[#858585] font-light text-base font-sans">SMNB Terminal</span>
         <div className="w-2 h-2 rounded-full bg-green-600"></div>
+        
         <div className="ml-auto flex items-center gap-4">
+          <ApiKeyInput compact />
           <ThemeToggle />
         </div>
       </div>
@@ -39,7 +42,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Footer */}
-      <footer className="h-[26px] shrink-0 flex items-center justify-between px-4 text-xs border-t border-black/10 dark:border-white/10 bg-[#181818]">
+      <footer className="h-[32px] shrink-0 flex items-center justify-between px-4 text-xs border-t border-black/10 dark:border-white/10 bg-[#181818]">
         <div className="flex items-center gap-2 text-foreground/90">
           <span>© built by ACDC.digital</span>
         </div>
