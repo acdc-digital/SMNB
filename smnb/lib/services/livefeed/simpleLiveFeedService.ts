@@ -172,6 +172,44 @@ class SimpleLiveFeedService {
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  /**
+   * Check if maintenance is needed and optionally run it
+   * This can be called periodically to simulate cron job behavior
+   */
+  async checkMaintenanceNeeds(autoRun: boolean = false) {
+    try {
+      const { feedMaintenanceService } = await import('./feedMaintenanceService');
+      
+      const requirements = await feedMaintenanceService.checkMaintenanceRequirements();
+      console.log('🔍 Maintenance check:', requirements);
+      
+      if (autoRun && requirements.recommendations.runMaintenance && requirements.totalPosts > 60) {
+        console.log('⚠️ Automatic maintenance triggered - too many posts');
+        const result = await feedMaintenanceService.automatedMaintenance();
+        console.log('✅ Automated maintenance completed:', result);
+        return result;
+      }
+      
+      return requirements;
+    } catch (error) {
+      console.error('❌ Maintenance check failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get maintenance statistics for monitoring
+   */
+  async getMaintenanceStats() {
+    try {
+      const { feedMaintenanceService } = await import('./feedMaintenanceService');
+      return await feedMaintenanceService.getFeedStats();
+    } catch (error) {
+      console.error('❌ Failed to get maintenance stats:', error);
+      return null;
+    }
+  }
 }
 
 export const simpleLiveFeedService = new SimpleLiveFeedService();

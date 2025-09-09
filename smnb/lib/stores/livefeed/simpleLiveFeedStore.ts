@@ -727,4 +727,50 @@ export const useSimpleLiveFeedStore = create<SimpleLiveFeedStore>((set, get) => 
       // Don't throw - this shouldn't break the normal flow
     }
   },
+
+  // Maintenance integration methods
+  triggerAutomatedMaintenance: async () => {
+    try {
+      const { feedMaintenanceService } = await import('@/lib/services/livefeed/feedMaintenanceService');
+      console.log('⏰ Triggering automated maintenance from live feed...');
+      const result = await feedMaintenanceService.automatedMaintenance();
+      console.log('✅ Automated maintenance completed:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Automated maintenance failed:', error);
+      throw error;
+    }
+  },
+
+  getFeedMaintenanceStats: async () => {
+    try {
+      const { feedMaintenanceService } = await import('@/lib/services/livefeed/feedMaintenanceService');
+      const stats = await feedMaintenanceService.getFeedStats();
+      console.log('📊 Retrieved feed maintenance stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('❌ Failed to get feed stats:', error);
+      throw error;
+    }
+  },
+
+  // Periodic maintenance check (called every time posts are added)
+  checkMaintenanceRequirements: async () => {
+    try {
+      const { feedMaintenanceService } = await import('@/lib/services/livefeed/feedMaintenanceService');
+      const requirements = await feedMaintenanceService.checkMaintenanceRequirements();
+      
+      // If we have too many posts, suggest maintenance
+      if (requirements.needsMaintenance && requirements.totalPosts > 60) {
+        console.log('⚠️ Feed has grown too large, automated maintenance recommended');
+        // Could trigger automatic maintenance here if desired
+        // await get().triggerAutomatedMaintenance();
+      }
+      
+      return requirements;
+    } catch (error) {
+      console.error('❌ Failed to check maintenance requirements:', error);
+      return null;
+    }
+  },
 }));
